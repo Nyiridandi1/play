@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "./supabase";
+import { createAgoraClient, joinAsHost, joinAsViewer, leaveChannel } from "./agora";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 🔴 PLAY V7 — Real Supabase Backend Edition 🇷🇼
