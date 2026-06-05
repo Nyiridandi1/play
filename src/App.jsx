@@ -56,7 +56,7 @@ const API = {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error("Wrong email or password.");
     // Get user profile from our users table
-    const { data: profile } = await supabase.from("users").select("*").eq("id", data.user.id).single();
+    const { data: profile } = await supabase.from("users").select("*").eq("id", data.user.id).maybeSingle();
     if (profile && profile.role !== role) throw new Error(`This account is not a ${role} account.`);
     return profile || { id: data.user.id, email, role, name: email.split("@")[0] };
   },
