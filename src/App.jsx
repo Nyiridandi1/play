@@ -615,7 +615,7 @@ function PaymentPage({ stream:s, go, onSuccess, th, viewer }) {
       // 🔁 SUPABASE: call real payment API then record in DB
       await API.pay(s.id, viewer?.id || "guest", method.id, s);
       setDone(true);
-      setTimeout(() => onSuccess(), 1200);
+      setTimeout(() => onSuccess(), 100);
     } catch(err) {
       setError(err.message);
       setLoading(false);
@@ -1314,8 +1314,8 @@ export default function App() {
   if (screen==="leaderboard") return <Leaderboard go={go} th={th} streams={streams} />;
   if (screen==="history") return <HistoryPage history={history} go={go} th={th} lang={lang} />;
   if (screen==="profile" && profileStream) return <ProfilePage stream={profileStream} go={go} th={th} viewer={viewer} setSelected={setSelected} setScreen={setScreen} toast={toast} />;
-  if (screen==="payment" && selected) return <PaymentPage stream={selected} go={go} th={th} viewer={viewer} onSuccess={() => { setPaid(true); setHistory(h => [...h, selected]); }} />;
-  if (paid && selected && viewer) return <LiveRoom stream={selected} user={viewer} go={go} toast={toast} lang={lang} />;
+  if (screen==="payment" && selected) return <PaymentPage stream={selected} go={go} th={th} viewer={viewer} onSuccess={() => { setPaid(true); setHistory(h => [...h, selected]); setScreen("live"); }} />;
+  if (paid && selected) return <LiveRoom stream={selected} user={viewer || {name:"Guest"}} go={go} toast={toast} lang={lang} />;
 
   const filtered = streams.filter(s => {
     const mc = cat==="All" || s.category===cat;
