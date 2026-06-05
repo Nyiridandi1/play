@@ -98,7 +98,8 @@ const API = {
   },
 
   // 💳 RECORD REAL PAYMENT
-  pay: async (streamId, viewerId, method, stream) => {
+  pay: async (streamId, viewerId, method, stream = {}) => {
+  if (!stream || !stream.price) return { earn: 0 };
     await delay(2000);
     const earn = stream.price * (1 - stream.cut / 100);
     await supabase.from("transactions").insert({
@@ -612,7 +613,7 @@ function PaymentPage({ stream:s, go, onSuccess, th, viewer }) {
     setLoading(true); setError("");
     try {
       // 🔁 SUPABASE: call real payment API then record in DB
-      await API.pay(s.id, viewer?.id || "guest", method.id);
+      await API.pay(s.id, viewer?.id || "guest", method.id, s);
       setDone(true);
       setTimeout(() => onSuccess(), 1200);
     } catch(err) {
