@@ -4,7 +4,7 @@ import Peer from "peerjs";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 🔴 PLAY RWANDA — Real Video with PeerJS 🇷🇼
-// No tokens! No certificates! Just works!
+// Fixed: STUN/TURN servers + null stream fix
 // ─────────────────────────────────────────────────────────────────────────────
 
 const R = "#E8002D";
@@ -18,6 +18,29 @@ const GREEN = "#4ade80";
 const LIGHT = {
   bg: "#f5f5f7", card: "#ffffff", dark: "#ffffff",
   border: "rgba(0,0,0,0.08)", text: "#1a1a1a", muted: "rgba(0,0,0,0.4)"
+};
+
+// ✅ FIX 1: Shared ICE config with STUN + TURN servers
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
 };
 
 function useTheme(dm) {
@@ -148,13 +171,10 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           videoRef.current.play();
         }
 
-        // Create peer with stream ID as peer ID
-        const peer = new Peer(`playRW-${s.id}`, {
-          host: "0.peerjs.com",
-          port: 443,
-          path: "/",
-          secure: true,
-        });
+        // ✅ FIX 2: Create peer with ICE_CONFIG (STUN + TURN)
+        const createPeer = (id) => new Peer(id, { config: ICE_CONFIG });
+
+        const peer = createPeer(`playRW-${s.id}`);
         peerRef.current = peer;
 
         peer.on("open", async (id) => {
@@ -173,7 +193,7 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           }, 4000);
         });
 
-        // When a viewer calls, answer with our stream
+        // ✅ When a viewer calls, answer with our stream
         peer.on("call", (call) => {
           call.answer(mediaStream);
           setViewers(v => v + 1);
@@ -183,9 +203,7 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           console.error("Peer error:", err);
           // If ID taken, use random ID
           if (err.type === "unavailable-id") {
-            const fallbackPeer = new Peer(undefined, {
-              host: "0.peerjs.com", port: 443, path: "/", secure: true,
-            });
+            const fallbackPeer = createPeer(undefined);
             peerRef.current = fallbackPeer;
             fallbackPeer.on("open", async (id) => {
               if (!mounted) return;
@@ -214,7 +232,6 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
     };
   }, []);
 
-  // Play local preview
   useEffect(() => {
     if (streamRef.current && videoRef.current && !vidOff) {
       videoRef.current.srcObject = streamRef.current;
@@ -336,32 +353,45 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         const { data } = await supabase.from("streams").select("peer_id").eq("id", s.id).single();
         const hostPeerId = data?.peer_id || `playRW-${s.id}`;
 
-        const peer = new Peer(undefined, {
-          host: "0.peerjs.com", port: 443, path: "/", secure: true,
-        });
+        // ✅ FIX 3: Use ICE_CONFIG for viewer too
+        const peer = new Peer(undefined, { config: ICE_CONFIG });
         peerRef.current = peer;
 
         peer.on("open", () => {
-          // Call the host
-          const call = peer.call(hostPeerId, null);
+          // ✅ FIX 4: Pass empty MediaStream instead of null
+          // null causes PeerJS to reject the call entirely
+          const call = peer.call(hostPeerId, new MediaStream());
+
           if (!call) {
             if (mounted) { setStatus("error"); setErrMsg("Host is not live yet. Try again in a moment!"); }
             return;
           }
+
           call.on("stream", (remoteStream) => {
             if (!mounted) return;
             if (videoRef.current) {
               videoRef.current.srcObject = remoteStream;
-              videoRef.current.play();
+              videoRef.current.play().catch(err => console.warn("Autoplay blocked:", err));
             }
             setStatus("live");
           });
+
           call.on("error", (err) => {
+            console.error("Call error:", err);
             if (mounted) { setStatus("error"); setErrMsg(err.message); }
           });
+
           call.on("close", () => {
             if (mounted) setStatus("ended");
           });
+
+          // ✅ FIX 5: Timeout — if no stream after 15s, show error
+          setTimeout(() => {
+            if (mounted && status === "connecting") {
+              setStatus("error");
+              setErrMsg("Could not connect to stream. The host may not be live yet, or the connection was blocked. Try again!");
+            }
+          }, 15000);
         });
 
         peer.on("error", (err) => {
@@ -445,6 +475,7 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
               <div style={{ fontSize: 70, animation: "floatEmoji 3s ease-in-out infinite" }}>{s.emoji || "🎬"}</div>
               <div style={{ color: TEXT, fontWeight: 800, fontSize: 16 }}>Connecting to {s.creator}...</div>
               <div style={{ display: "flex", gap: 8 }}>{[0, 1, 2].map(i => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: R, animation: `dotBounce 0.7s ${i * 0.15}s ease-in-out infinite alternate` }} />)}</div>
+              <div style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>This may take up to 15 seconds...</div>
             </div>
           )}
           {status === "live" && (
@@ -824,7 +855,7 @@ function CreatorStudio({ creator, go, th, toast, lang }) {
                 <input type="range" min={5} max={30} value={form.cut} onChange={e => setForm(p => ({ ...p, cut: Number(e.target.value) }))} style={{ width: "100%", accentColor: R }} />
               </div>
               <div style={{ background: "rgba(74,222,128,0.07)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: GREEN, lineHeight: 1.6 }}>
-                📡 Uses PeerJS for real video! Browser will ask for camera & mic — click Allow!
+                📡 Uses PeerJS with STUN + TURN servers for reliable connections! 🌍
               </div>
               <button onClick={startLive} disabled={loading} style={{ width: "100%", background: R, border: "none", borderRadius: 12, padding: "13px", color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "sans-serif", opacity: loading ? 0.7 : 1 }}>{loading ? "Starting..." : "🔴 Go Live Now!"}</button>
             </div>
