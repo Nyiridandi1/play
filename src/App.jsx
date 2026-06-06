@@ -20,25 +20,29 @@ const LIGHT = {
   border: "rgba(0,0,0,0.08)", text: "#1a1a1a", muted: "rgba(0,0,0,0.4)"
 };
 
-// ✅ FIX 1: Shared ICE config with STUN + TURN servers
+// ✅ Real Metered.ca TURN credentials for Play Rwanda 🇷🇼
 const ICE_CONFIG = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.relay.metered.ca:80" },
     {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:global.relay.metered.ca:80",
+      username: "51419e5b66ea64273557b12c",
+      credential: "HuNrKxG5xhvKGzP0",
     },
     {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "51419e5b66ea64273557b12c",
+      credential: "HuNrKxG5xhvKGzP0",
     },
     {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:global.relay.metered.ca:443",
+      username: "51419e5b66ea64273557b12c",
+      credential: "HuNrKxG5xhvKGzP0",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "51419e5b66ea64273557b12c",
+      credential: "HuNrKxG5xhvKGzP0",
     },
   ],
 };
