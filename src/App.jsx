@@ -175,8 +175,14 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           videoRef.current.play();
         }
 
-        // ✅ FIX 2: Create peer with ICE_CONFIG (STUN + TURN)
-        const createPeer = (id) => new Peer(id, { config: ICE_CONFIG });
+        // ✅ FIX 2: Create peer with ICE_CONFIG + Metered signaling server
+        const createPeer = (id) => new Peer(id, {
+          host: "0.peerjs.com",
+          port: 443,
+          path: "/",
+          secure: true,
+          config: ICE_CONFIG,
+        });
 
         const peer = createPeer(`playRW-${s.id}`);
         peerRef.current = peer;
@@ -357,8 +363,14 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         const { data } = await supabase.from("streams").select("peer_id").eq("id", s.id).single();
         const hostPeerId = data?.peer_id || `playRW-${s.id}`;
 
-        // ✅ FIX 3: Use ICE_CONFIG for viewer too
-        const peer = new Peer(undefined, { config: ICE_CONFIG });
+        // ✅ FIX 3: Use same signaling server as host + ICE_CONFIG
+        const peer = new Peer(undefined, {
+          host: "0.peerjs.com",
+          port: 443,
+          path: "/",
+          secure: true,
+          config: ICE_CONFIG,
+        });
         peerRef.current = peer;
 
         peer.on("open", () => {
