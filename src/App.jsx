@@ -40,16 +40,90 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
+
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   @keyframes bounce { from{opacity:0.3;transform:translateY(0)} to{opacity:1;transform:translateY(-8px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
   @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
   @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-  .nav-btn { transition: all 0.2s ease !important; }
-  .nav-btn:hover { opacity: 0.8 !important; transform: scale(1.03) !important; }
-  .go-live-btn:hover { background: #ff0a16 !important; box-shadow: 0 0 20px rgba(229,9,20,0.5) !important; }
-  .sign-in-btn:hover { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.5) !important; }
+
+  /* ── BUTTON HOVERS ── */
+  .btn-red { transition: all 0.2s ease !important; }
+  .btn-red:hover { background: #ff0a16 !important; box-shadow: 0 0 24px rgba(229,9,20,0.6) !important; transform: translateY(-1px) !important; }
+  .btn-red:active { transform: translateY(0) scale(0.98) !important; }
+
+  .btn-white { transition: all 0.2s ease !important; }
+  .btn-white:hover { background: rgba(255,255,255,0.85) !important; transform: translateY(-1px) !important; }
+  .btn-white:active { transform: scale(0.98) !important; }
+
+  .btn-ghost { transition: all 0.2s ease !important; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.12) !important; border-color: rgba(255,255,255,0.5) !important; color: #fff !important; }
+
+  .btn-surface { transition: all 0.2s ease !important; }
+  .btn-surface:hover { background: #2a2a2a !important; border-color: rgba(255,255,255,0.25) !important; }
+
+  .btn-danger { transition: all 0.2s ease !important; }
+  .btn-danger:hover { background: rgba(229,9,20,0.25) !important; border-color: ${C.red} !important; color: #fff !important; }
+
+  /* ── NAV LINKS ── */
+  .nav-link { transition: color 0.2s ease !important; }
+  .nav-link:hover { color: #fff !important; }
+
+  /* ── CATEGORY PILLS ── */
+  .cat-pill { transition: all 0.2s ease !important; }
+  .cat-pill:hover { background: rgba(229,9,20,0.2) !important; border-color: ${C.red} !important; color: #fff !important; transform: translateY(-1px) !important; }
+
+  /* ── FOOTER LINKS ── */
+  .footer-link { transition: color 0.2s ease !important; cursor: pointer; }
+  .footer-link:hover { color: #fff !important; padding-left: 4px !important; }
+
+  /* ── SOCIAL BADGES ── */
+  .social-badge { transition: all 0.2s ease !important; cursor: pointer; }
+  .social-badge:hover { background: ${C.red} !important; border-color: ${C.red} !important; color: #fff !important; transform: translateY(-2px) !important; }
+
+  /* ── PAYMENT METHOD CARDS ── */
+  .pay-card { transition: all 0.2s ease !important; cursor: pointer; }
+  .pay-card:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important; }
+
+  /* ── GIFT CARDS ── */
+  .gift-card { transition: all 0.2s ease !important; cursor: pointer; }
+  .gift-card:hover { background: #252525 !important; border-color: rgba(255,255,255,0.25) !important; transform: translateY(-3px) scale(1.04) !important; box-shadow: 0 8px 20px rgba(0,0,0,0.5) !important; }
+
+  /* ── TAB BUTTONS ── */
+  .tab-btn { transition: all 0.2s ease !important; }
+  .tab-btn:hover { color: #fff !important; }
+
+  /* ── STREAM TABLE ROWS ── */
+  .stream-row { transition: background 0.2s ease !important; }
+  .stream-row:hover { background: #1c1c1c !important; }
+
+  /* ── LOGO ── */
+  .logo { transition: opacity 0.2s ease !important; }
+  .logo:hover { opacity: 0.85 !important; }
+
+  /* ── AVATAR ── */
+  .avatar { transition: transform 0.2s ease !important; }
+  .avatar:hover { transform: scale(1.08) !important; }
+
+  /* ── HERO BUTTONS ── */
+  .hero-watch { transition: all 0.2s ease !important; }
+  .hero-watch:hover { background: rgba(255,255,255,0.85) !important; transform: translateY(-2px) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important; }
+
+  .hero-info { transition: all 0.2s ease !important; }
+  .hero-info:hover { background: rgba(255,255,255,0.2) !important; transform: translateY(-2px) !important; }
+
+  /* ── CHAT INPUT AREA ── */
+  .chat-send { transition: all 0.2s ease !important; }
+  .chat-send:hover { background: #ff0a16 !important; transform: scale(1.05) !important; }
+
+  /* ── END STREAM / LEAVE BUTTONS ── */
+  .btn-end { transition: all 0.2s ease !important; }
+  .btn-end:hover { background: #c0060f !important; box-shadow: 0 0 16px rgba(229,9,20,0.5) !important; }
+
+  /* ── CONTROL BUTTONS (mic/cam) ── */
+  .ctrl-btn { transition: all 0.2s ease !important; }
+  .ctrl-btn:hover { transform: scale(1.1) !important; box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important; }
 `;
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -241,9 +315,9 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{user.name}</span>
                 <button className="nav-btn sign-in-btn" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>Sign Out</button>
               </>
-              : <button className="nav-btn sign-in-btn" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500, transition: "all 0.2s" }}>Sign In</button>
+              : <button className="btn-ghost" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500, transition: "all 0.2s" }}>Sign In</button>
             }
-            <button className="nav-btn go-live-btn" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, letterSpacing: 0.5, transition: "all 0.2s" }}>Go Live</button>
+            <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, letterSpacing: 0.5, transition: "all 0.2s" }}>Go Live</button>
           </div>
         </div>
       </nav>
@@ -259,10 +333,10 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
             <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{featured.creator} · {featured.viewers?.toLocaleString()} watching</div>
             <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20 }}>{featured.category} · {fmt(featured.price, featured.currency)} to join</div>
             <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => onWatch(featured)} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 28px", cursor: "pointer", fontSize: 15, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>
+              <button className="hero-watch" onClick={() => onWatch(featured)} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 28px", cursor: "pointer", fontSize: 15, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>
                 ▶ Watch Now
               </button>
-              <button style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${C.border}`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>
+              <button className="hero-info" style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${C.border}`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>
                 + More Info
               </button>
             </div>
@@ -286,7 +360,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {CATS.map(c => (
-              <button key={c} onClick={() => setCat(c)} style={{ background: cat === c ? C.red : C.surface, border: `1px solid ${cat === c ? C.red : C.border}`, color: cat === c ? C.white : C.textMuted, borderRadius: 6, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>
+              <button className="cat-pill" key={c} onClick={() => setCat(c)} style={{ background: cat === c ? C.red : C.surface, border: `1px solid ${cat === c ? C.red : C.border}`, color: cat === c ? C.white : C.textMuted, borderRadius: 6, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>
                 {c}
               </button>
             ))}
@@ -324,13 +398,13 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
               <div>
                 <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Platform</div>
                 {["Browse Streams", "Top Creators", "How it Works", "Pricing"].map(item => (
-                  <div key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10, cursor: "pointer", transition: "color 0.2s" }}>{item}</div>
+                  <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10 }}>{item}</div>
                 ))}
               </div>
               <div>
                 <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Creators</div>
                 {["Go Live", "Creator Studio", "Payouts", "Guidelines"].map(item => (
-                  <div key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10, cursor: "pointer" }}>{item}</div>
+                  <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10 }}>{item}</div>
                 ))}
               </div>
               <div>
@@ -339,7 +413,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
                 <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>Kigali, Rwanda</div>
                 <div style={{ display: "flex", gap: 10 }}>
                   {["Twitter", "Instagram", "TikTok"].map(s => (
-                    <div key={s} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, color: C.textMuted, cursor: "pointer" }}>{s}</div>
+                    <div className="social-badge" key={s} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, color: C.textMuted }}>{s}</div>
                   ))}
                 </div>
               </div>
@@ -458,7 +532,7 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
             <div style={{ fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Earned</div>
             <div style={{ fontWeight: 700, color: "#4ade80", fontSize: 16 }}>{Math.round(earnings).toLocaleString()} RWF</div>
           </div>
-          <button onClick={endStream} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body }}>End Stream</button>
+          <button className="btn-end" onClick={endStream} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body }}>End Stream</button>
         </div>
       </div>
 
@@ -489,10 +563,10 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
 
             {/* Controls */}
             <div style={{ position: "absolute", bottom: 28, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14 }}>
-              <button onClick={toggleMic} style={{ background: micMuted ? C.red : "rgba(0,0,0,0.7)", border: `1px solid ${micMuted ? C.red : C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }}>
+              <button className="ctrl-btn" onClick={toggleMic} style={{ background: micMuted ? C.red : "rgba(0,0,0,0.7)", border: `1px solid ${micMuted ? C.red : C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }}>
                 {micMuted ? "🔇" : "🎤"}
               </button>
-              <button onClick={toggleVid} style={{ background: vidOff ? C.red : "rgba(0,0,0,0.7)", border: `1px solid ${vidOff ? C.red : C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }}>
+              <button className="ctrl-btn" onClick={toggleVid} style={{ background: vidOff ? C.red : "rgba(0,0,0,0.7)", border: `1px solid ${vidOff ? C.red : C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }}>
                 {vidOff ? "📷" : "📹"}
               </button>
             </div>
@@ -710,7 +784,7 @@ function LiveRoom({ stream: s, user, go, toast }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
               {GIFTS.map(g => (
-                <div key={g.id} onClick={() => { onGiftSent(g); setShowGifts(false); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 8px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}>
+                <div className="gift-card" key={g.id} onClick={() => { onGiftSent(g); setShowGifts(false); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 8px", textAlign: "center" }}>
                   <div style={{ fontSize: 34, marginBottom: 6 }}>{g.emoji}</div>
                   <div style={{ fontWeight: 600, fontSize: 12, color: C.white, marginBottom: 4 }}>{g.name}</div>
                   <div style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>{fmt(g.price, "RWF")}</div>
@@ -892,7 +966,7 @@ function PaymentPage({ stream: s, go, onSuccess, viewer }) {
         <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Payment Method</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {PAY_METHODS.map(pm => (
-            <div key={pm.id} onClick={() => setMethod(pm)} style={{ background: method?.id === pm.id ? `${pm.color}15` : C.card, border: `1.5px solid ${method?.id === pm.id ? pm.color : C.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", transition: "all 0.2s" }}>
+            <div className="pay-card" key={pm.id} onClick={() => setMethod(pm)} style={{ background: method?.id === pm.id ? `${pm.color}15` : C.card, border: `1.5px solid ${method?.id === pm.id ? pm.color : C.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 44, height: 28, borderRadius: 6, background: pm.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 {pm.id === "mtn" && <span style={{ fontSize: 10, fontWeight: 800, color: "#000" }}>MTN</span>}
                 {pm.id === "airtel" && <span style={{ fontSize: 9, fontWeight: 800, color: "#fff" }}>AIRTEL</span>}
