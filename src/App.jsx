@@ -1567,7 +1567,7 @@ export default function App() {
   const toast = msg => setToastMsg(msg);
 
   useEffect(() => {
-    supabase.from("streams").select("*").order("created_at", { ascending: false })
+    supabase.from("streams").select("*").eq("live", true).order("created_at", { ascending: false })
       .then(({ data }) => { setStreams(data?.length > 0 ? data : MOCK_STREAMS); setLoadingStreams(false); })
       .catch(() => { setStreams(MOCK_STREAMS); setLoadingStreams(false); });
   }, []);
