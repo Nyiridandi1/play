@@ -1409,7 +1409,7 @@ function CreatorStudio({ creator, go, toast }) {
   const [showCreate, setShowCreate] = useState(false);
   const [hosting, setHosting] = useState(false);
   const [activeStream, setActiveStream] = useState(null);
-  const [form, setForm] = useState({ title: "", price: "", currency: "RWF", cut: 15, category: creator.category || "Music" });
+  const [form, setForm] = useState({ title: "", price: "", currency: "RWF", cut: 15, category: creator.category || "Music", thumbnailFile: null, thumbnailPreview: null });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -1426,12 +1426,24 @@ function CreatorStudio({ creator, go, toast }) {
     if (!form.title || !form.price) { toast("Please fill title and price!"); return; }
     setLoading(true);
     try {
+      // Upload custom thumbnail if provided
+      let thumbnailUrl = null;
+      if (form.thumbnailFile) {
+        const fileName = `custom-${creator.id}-${Date.now()}.jpg`;
+        const { data } = await supabase.storage.from("thumbnails").upload(fileName, form.thumbnailFile, { upsert: true, contentType: form.thumbnailFile.type });
+        if (data) {
+          const { data: urlData } = supabase.storage.from("thumbnails").getPublicUrl(fileName);
+          thumbnailUrl = urlData.publicUrl;
+        }
+      }
+
       const { data: s, error: e } = await supabase.from("streams").insert({
         creator_id: creator.id, creator: creator.name,
         handle: creator.handle || `@${creator.name?.toLowerCase()}`,
         title: form.title, category: form.category, price: Number(form.price),
         currency: form.currency, cut: Number(form.cut), emoji: "🎤",
-        bio: "", viewers: 0, total_earned: 0, live: true, peer_id: null
+        bio: "", viewers: 0, total_earned: 0, live: true, peer_id: null,
+        thumbnail_url: thumbnailUrl,
       }).select().single();
       if (e) throw new Error(e.message);
       setActiveStream(s); setShowCreate(false); setHosting(true);
@@ -1595,6 +1607,23 @@ function CreatorStudio({ creator, go, toast }) {
                   Platform Fee — <span style={{ color: C.red }}>{form.cut}%</span> · You keep <span style={{ color: "#4ade80" }}>{100 - form.cut}%</span>
                 </label>
                 <input type="range" min={5} max={30} value={form.cut} onChange={e => setForm(p => ({ ...p, cut: Number(e.target.value) }))} style={{ width: "100%", accentColor: C.red }} />
+              </div>
+              {/* Thumbnail Upload */}
+              <div>
+                <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Thumbnail (optional)</label>
+                <div onClick={() => document.getElementById("thumb-upload").click()} style={{ border: `1px dashed ${C.border}`, borderRadius: 8, overflow: "hidden", cursor: "pointer", background: C.surface, minHeight: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {form.thumbnailPreview
+                    ? <img src={form.thumbnailPreview} alt="thumb" style={{ width: "100%", height: 120, objectFit: "cover" }} />
+                    : <div style={{ textAlign: "center", padding: 16 }}>
+                        <div style={{ fontSize: 24, marginBottom: 4 }}>🖼️</div>
+                        <div style={{ color: C.textMuted, fontSize: 12 }}>Click to upload · If skipped, auto-captured from camera</div>
+                      </div>
+                  }
+                  <input id="thumb-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+                    const file = e.target.files[0];
+                    if (file) setForm(p => ({ ...p, thumbnailFile: file, thumbnailPreview: URL.createObjectURL(file) }));
+                  }} />
+                </div>
               </div>
               <button onClick={startLive} disabled={loading} style={{ background: C.red, border: "none", borderRadius: 10, padding: "14px", color: C.white, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1, opacity: loading ? 0.7 : 1 }}>
                 {loading ? "STARTING..." : "GO LIVE NOW"}
