@@ -241,8 +241,11 @@ function StreamCard({ stream: s, onClick }) {
     >
       <div style={{ borderRadius: 6, overflow: "hidden", background: C.card }}>
         {/* Thumbnail */}
-        <div style={{ position: "relative", height: 152, background: grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontSize: 52, transition: "transform 0.3s ease", transform: hovered ? "scale(1.1)" : "scale(1)" }}>{s.emoji || "🎬"}</div>
+        <div style={{ position: "relative", height: 152, background: grad, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          {s.thumbnail_url
+            ? <img src={s.thumbnail_url} alt={s.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s ease", transform: hovered ? "scale(1.05)" : "scale(1)" }} />
+            : <div style={{ fontSize: 52, transition: "transform 0.3s ease", transform: hovered ? "scale(1.1)" : "scale(1)" }}>{s.emoji || "🎬"}</div>
+          }
           <div style={{ position: "absolute", inset: 0, background: hovered ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.35)", transition: "background 0.25s" }} />
           <div style={{ position: "absolute", top: 8, left: 8 }}><LiveBadge /></div>
           <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.8)", borderRadius: 4, padding: "3px 8px", fontSize: 12, fontWeight: 700, color: C.white }}>{fmt(s.price, s.currency)}</div>
@@ -688,6 +691,33 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           await supabase.from("streams").update({ live: true, peer_id: room.name }).eq("id", s.id);
           tIv = setInterval(() => setSeconds(d => d + 1), 1000);
           vIv = setInterval(() => setEarnings(e => e + s.price * (1 - s.cut / 100)), 4000);
+
+          // ✅ Auto-capture thumbnail every 30 seconds
+          const captureThumbnail = async () => {
+            if (!videoRef.current || !mounted) return;
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = 640;
+              canvas.height = 360;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(videoRef.current, 0, 0, 640, 360);
+              canvas.toBlob(async (blob) => {
+                if (!blob) return;
+                const fileName = `stream-${s.id}-${Date.now()}.jpg`;
+                const { data } = await supabase.storage.from("thumbnails").upload(fileName, blob, { upsert: true, contentType: "image/jpeg" });
+                if (data) {
+                  const { data: urlData } = supabase.storage.from("thumbnails").getPublicUrl(fileName);
+                  await supabase.from("streams").update({ thumbnail_url: urlData.publicUrl }).eq("id", s.id);
+                }
+              }, "image/jpeg", 0.8);
+            } catch (e) { console.warn("Thumbnail capture failed:", e); }
+          };
+
+          // Capture first thumbnail after 3 seconds, then every 30s
+          setTimeout(captureThumbnail, 3000);
+          const thumbIv = setInterval(captureThumbnail, 30000);
+          // Store interval ref for cleanup
+          window.__thumbIv = thumbIv;
         }
       } catch (err) {
         if (mounted) { setStatus("error"); setErrMsg(err.message); }
@@ -708,7 +738,8 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
   const endStream = async () => {
     if (videoRef.current?.srcObject) videoRef.current.srcObject.getTracks().forEach(t => t.stop());
     if (roomRef.current) roomRef.current.disconnect();
-    await supabase.from("streams").update({ live: false, peer_id: null }).eq("id", s.id);
+    if (window.__thumbIv) clearInterval(window.__thumbIv);
+    await supabase.from("streams").update({ live: false, peer_id: null, thumbnail_url: null }).eq("id", s.id);
     toast(`Stream ended! Earned ~${Math.round(earnings).toLocaleString()} RWF`);
     onEnd();
   };
@@ -778,6 +809,24 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
               </button>
               <button className="ctrl-btn" onClick={toggleVid} style={{ background: vidOff ? C.red : "rgba(0,0,0,0.7)", border: `1px solid ${vidOff ? C.red : C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }}>
                 {vidOff ? "📷" : "📹"}
+              </button>
+              {/* Manual thumbnail capture */}
+              <button className="ctrl-btn" onClick={async () => {
+                if (!videoRef.current) return;
+                const canvas = document.createElement("canvas");
+                canvas.width = 640; canvas.height = 360;
+                canvas.getContext("2d").drawImage(videoRef.current, 0, 0, 640, 360);
+                canvas.toBlob(async (blob) => {
+                  const fileName = `stream-${s.id}-manual.jpg`;
+                  const { data } = await supabase.storage.from("thumbnails").upload(fileName, blob, { upsert: true, contentType: "image/jpeg" });
+                  if (data) {
+                    const { data: urlData } = supabase.storage.from("thumbnails").getPublicUrl(fileName);
+                    await supabase.from("streams").update({ thumbnail_url: urlData.publicUrl }).eq("id", s.id);
+                    toast("📸 Thumbnail updated!");
+                  }
+                }, "image/jpeg", 0.8);
+              }} style={{ background: "rgba(0,0,0,0.7)", border: `1px solid ${C.border}`, borderRadius: 50, width: 56, height: 56, fontSize: 22, cursor: "pointer", color: C.white, backdropFilter: "blur(10px)" }} title="Capture thumbnail">
+                📸
               </button>
             </div>
           </>
