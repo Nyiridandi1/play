@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import Peer from "peerjs";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 🔴 PLAY RWANDA — Real Video with PeerJS 🇷🇼
-// Fixed: STUN/TURN servers + null stream fix
+// 🔴 PLAY RWANDA — Real Video with LiveKit 🇷🇼
 // ─────────────────────────────────────────────────────────────────────────────
 
 const R = "#E8002D";
@@ -20,32 +18,7 @@ const LIGHT = {
   border: "rgba(0,0,0,0.08)", text: "#1a1a1a", muted: "rgba(0,0,0,0.4)"
 };
 
-// ✅ Real Metered.ca TURN credentials for Play Rwanda 🇷🇼
-const ICE_CONFIG = {
-  iceServers: [
-    { urls: "stun:stun.relay.metered.ca:80" },
-    {
-      urls: "turn:global.relay.metered.ca:80",
-      username: "51419e5b66ea64273557b12c",
-      credential: "HuNrKxG5xhvKGzP0",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "51419e5b66ea64273557b12c",
-      credential: "HuNrKxG5xhvKGzP0",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "51419e5b66ea64273557b12c",
-      credential: "HuNrKxG5xhvKGzP0",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "51419e5b66ea64273557b12c",
-      credential: "HuNrKxG5xhvKGzP0",
-    },
-  ],
-};
+
 
 function useTheme(dm) {
   return {
@@ -142,13 +115,11 @@ function SplashScreen({ onDone }) {
   );
 }
 
-// ── 🎬 HOST BROADCAST — PeerJS ─────────────────────────────────────────────────
+// ── 🎬 HOST BROADCAST — LiveKit ─────────────────────────────────────────────────
 function HostBroadcast({ stream: s, onEnd, toast }) {
-  const peerRef = useRef(null);
+  const roomRef = useRef(null);
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
   const [status, setStatus] = useState("starting");
-  const [peerId, setPeerId] = useState("");
   const [errMsg, setErrMsg] = useState("");
   const [micMuted, setMicMuted] = useState(false);
   const [vidOff, setVidOff] = useState(false);
@@ -163,73 +134,52 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
 
     const start = async () => {
       try {
-        // Get camera & mic
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 1280, height: 720 },
-          audio: true
-        });
-        streamRef.current = mediaStream;
+        // Get token from our API
+        const res = await fetch(`/api/livekit-token?room=${s.id}&username=host-${s.id}&isHost=true`);
+        const { token } = await res.json();
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          videoRef.current.play();
+        // Dynamically import LiveKit
+        const { Room, RoomEvent, createLocalTracks } = await import("livekit-client");
+
+        // Create local tracks (camera + mic)
+        const tracks = await createLocalTracks({ audio: true, video: { width: 1280, height: 720 } });
+
+        // Show local preview
+        const videoTrack = tracks.find(t => t.kind === "video");
+        if (videoTrack && videoRef.current) {
+          videoTrack.attach(videoRef.current);
         }
 
-        // ✅ FIX 2: Create peer with ICE_CONFIG + Metered signaling server
-        const createPeer = (id) => new Peer(id, {
-          host: "0.peerjs.com",
-          port: 443,
-          path: "/",
-          secure: true,
-          config: ICE_CONFIG,
+        // Connect to LiveKit room
+        const room = new Room();
+        roomRef.current = room;
+
+        room.on(RoomEvent.ParticipantConnected, () => {
+          if (mounted) setViewers(v => v + 1);
+        });
+        room.on(RoomEvent.ParticipantDisconnected, () => {
+          if (mounted) setViewers(v => Math.max(0, v - 1));
         });
 
-        const peer = createPeer(`playRW-${s.id}`);
-        peerRef.current = peer;
+        await room.connect("wss://play-rw-psye6scu.livekit.cloud", token);
 
-        peer.on("open", async (id) => {
-          if (!mounted) return;
-          setPeerId(id);
+        // Publish tracks
+        for (const track of tracks) {
+          await room.localParticipant.publishTrack(track);
+        }
+
+        if (mounted) {
           setStatus("live");
           toast("🔴 You are LIVE! Viewers can see you! 🇷🇼");
-
-          // Save peer ID to Supabase so viewers can connect
-          await supabase.from("streams").update({ peer_id: id }).eq("id", s.id);
-
+          await supabase.from("streams").update({ live: true, peer_id: room.name }).eq("id", s.id);
           tIv = setInterval(() => setSeconds(d => d + 1), 1000);
           vIv = setInterval(() => {
-            setViewers(v => v + Math.floor(Math.random() * 3));
             setEarnings(e => e + s.price * (1 - s.cut / 100));
           }, 4000);
-        });
-
-        // ✅ When a viewer calls, answer with our stream
-        peer.on("call", (call) => {
-          call.answer(mediaStream);
-          setViewers(v => v + 1);
-        });
-
-        peer.on("error", (err) => {
-          console.error("Peer error:", err);
-          // If ID taken, use random ID
-          if (err.type === "unavailable-id") {
-            const fallbackPeer = createPeer(undefined);
-            peerRef.current = fallbackPeer;
-            fallbackPeer.on("open", async (id) => {
-              if (!mounted) return;
-              setPeerId(id);
-              setStatus("live");
-              toast("🔴 You are LIVE! 🇷🇼");
-              await supabase.from("streams").update({ peer_id: id }).eq("id", s.id);
-              fallbackPeer.on("call", (call) => { call.answer(mediaStream); setViewers(v => v + 1); });
-            });
-          } else {
-            if (mounted) { setStatus("error"); setErrMsg(err.message); }
-          }
-        });
+        }
 
       } catch (err) {
-        console.error("Camera error:", err);
+        console.error("LiveKit error:", err);
         if (mounted) { setStatus("error"); setErrMsg(err.message); }
       }
     };
@@ -239,30 +189,24 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
       mounted = false;
       clearInterval(tIv);
       clearInterval(vIv);
+      if (roomRef.current) roomRef.current.disconnect();
     };
   }, []);
 
-  useEffect(() => {
-    if (streamRef.current && videoRef.current && !vidOff) {
-      videoRef.current.srcObject = streamRef.current;
-    }
-  }, [vidOff]);
-
-  const toggleMic = () => {
-    if (streamRef.current) {
-      streamRef.current.getAudioTracks().forEach(t => t.enabled = micMuted);
+  const toggleMic = async () => {
+    if (roomRef.current) {
+      await roomRef.current.localParticipant.setMicrophoneEnabled(micMuted);
       setMicMuted(m => !m);
     }
   };
-  const toggleVid = () => {
-    if (streamRef.current) {
-      streamRef.current.getVideoTracks().forEach(t => t.enabled = vidOff);
+  const toggleVid = async () => {
+    if (roomRef.current) {
+      await roomRef.current.localParticipant.setCameraEnabled(vidOff);
       setVidOff(v => !v);
     }
   };
   const endStream = async () => {
-    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    if (peerRef.current) peerRef.current.destroy();
+    if (roomRef.current) roomRef.current.disconnect();
     await supabase.from("streams").update({ live: false, peer_id: null }).eq("id", s.id);
     toast(`✅ Stream ended! Earned ~${Math.round(earnings).toLocaleString()} RWF 💚`);
     onEnd();
@@ -303,13 +247,6 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
             <div style={{ fontSize: 48 }}>⚠️</div>
             <div style={{ color: R, fontWeight: 800, fontSize: 18 }}>Camera failed</div>
             <div style={{ color: MUTED, fontSize: 13, maxWidth: 300, textAlign: "center", lineHeight: 1.7 }}>{errMsg}</div>
-            <div style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${BORDER}`, borderRadius: 12, padding: "14px 20px", fontSize: 12, color: MUTED, maxWidth: 320, lineHeight: 1.8 }}>
-              <div style={{ color: TEXT, fontWeight: 700, marginBottom: 8 }}>🔧 Fix:</div>
-              <div>1. Click the 🔒 lock icon in Chrome address bar</div>
-              <div style={{ marginTop: 6 }}>2. Set Camera → Allow</div>
-              <div style={{ marginTop: 6 }}>3. Set Microphone → Allow</div>
-              <div style={{ marginTop: 6 }}>4. Refresh and try again</div>
-            </div>
             <button onClick={onEnd} style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "9px 20px", color: TEXT, fontWeight: 700, cursor: "pointer" }}>← Go Back</button>
           </div>
         )}
@@ -317,7 +254,7 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           <>
             <video ref={videoRef} autoPlay muted playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: vidOff ? "none" : "block" }} />
             {vidOff && <div style={{ position: "absolute", inset: 0, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}><div style={{ fontSize: 48 }}>📷</div><div style={{ color: MUTED, fontSize: 14 }}>Camera is off</div></div>}
-            <div style={{ position: "absolute", top: 12, left: 14, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 12px", fontSize: 11, color: "#fff", fontWeight: 700 }}>📡 Broadcasting via PeerJS</div>
+            <div style={{ position: "absolute", top: 12, left: 14, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 12px", fontSize: 11, color: "#fff", fontWeight: 700 }}>📡 Broadcasting via LiveKit</div>
             <div style={{ position: "absolute", top: 12, right: 14, display: "flex", gap: 8 }}>
               <div style={{ background: micMuted ? "rgba(232,0,45,0.85)" : "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#fff", fontWeight: 700 }}>{micMuted ? "🔇 Muted" : "🎤 Live"}</div>
               <div style={{ background: vidOff ? "rgba(232,0,45,0.85)" : "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#fff", fontWeight: 700 }}>{vidOff ? "📷 Off" : "📹 On"}</div>
@@ -334,8 +271,227 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
   );
 }
 
-// ── 🔴 LIVE ROOM — PeerJS Viewer ──────────────────────────────────────────────
+// ── 🔴 LIVE ROOM — LiveKit Viewer ──────────────────────────────────────────────
 function LiveRoom({ stream: s, user, go, toast, lang }) {
+  const t = LANG[lang];
+  const roomRef = useRef(null);
+  const videoRef = useRef(null);
+  const [status, setStatus] = useState("connecting");
+  const [errMsg, setErrMsg] = useState("");
+  const [messages, setMessages] = useState([
+    { user: "Mugabo", text: "🔥🔥🔥 Amazing!", me: false },
+    { user: "Ingabire", text: "Neza cyane! ❤️", me: false },
+    { user: user.name, text: "Just joined! 🎉", me: true },
+  ]);
+  const [msg, setMsg] = useState("");
+  const [viewers, setViewers] = useState((s.viewers || 100) + 1);
+  const [showChat, setShowChat] = useState(true);
+  const [showGifts, setShowGifts] = useState(false);
+  const [giftNotif, setGiftNotif] = useState(null);
+  const chatRef = useRef(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let chatIv = null;
+
+    const connect = async () => {
+      try {
+        // Get viewer token
+        const res = await fetch(`/api/livekit-token?room=${s.id}&username=${user.name}-${Date.now()}&isHost=false`);
+        const { token } = await res.json();
+
+        const { Room, RoomEvent, Track } = await import("livekit-client");
+
+        const room = new Room();
+        roomRef.current = room;
+
+        // When host publishes video, show it
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          if (!mounted) return;
+          if (track.kind === Track.Kind.Video) {
+            track.attach(videoRef.current);
+            setStatus("live");
+          }
+        });
+
+        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+          if (track.kind === "video") {
+            if (mounted) setStatus("ended");
+          }
+        });
+
+        room.on(RoomEvent.ParticipantConnected, () => {
+          if (mounted) setViewers(v => v + 1);
+        });
+
+        room.on(RoomEvent.Disconnected, () => {
+          if (mounted) setStatus("ended");
+        });
+
+        await room.connect("wss://play-rw-psye6scu.livekit.cloud", token);
+
+        // Check if host is already publishing
+        room.remoteParticipants.forEach(participant => {
+          participant.trackPublications.forEach(publication => {
+            if (publication.track && publication.track.kind === "video") {
+              publication.track.attach(videoRef.current);
+              if (mounted) setStatus("live");
+            }
+          });
+        });
+
+        // Timeout — if no stream after 15s
+        setTimeout(() => {
+          if (mounted && status === "connecting") {
+            setStatus("error");
+            setErrMsg("Host is not live yet. Try again in a moment!");
+          }
+        }, 15000);
+
+        chatIv = setInterval(() => {
+          setViewers(v => v + Math.floor(Math.random() * 2));
+          const u = FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)];
+          const m = FAKE_MSGS[Math.floor(Math.random() * FAKE_MSGS.length)];
+          setMessages(p => [...p.slice(-40), { user: u, text: m, me: false }]);
+        }, 2500);
+
+      } catch (err) {
+        console.error("LiveKit viewer error:", err);
+        if (mounted) { setStatus("error"); setErrMsg("Could not connect to stream!"); }
+      }
+    };
+
+    connect();
+    return () => {
+      mounted = false;
+      clearInterval(chatIv);
+      if (roomRef.current) roomRef.current.disconnect();
+    };
+  }, []);
+
+  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages]);
+  const sendMsg = () => { if (!msg.trim()) return; setMessages(p => [...p, { user: user.name, text: msg, me: true }]); setMsg(""); };
+  const leave = () => { if (roomRef.current) roomRef.current.disconnect(); go(); };
+  const onGiftSent = gift => {
+    setGiftNotif(gift);
+    setMessages(p => [...p, { user: user.name, text: `${gift.emoji} Sent a ${gift.name}!`, me: true, isGift: true }]);
+    setTimeout(() => setGiftNotif(null), 3000);
+    toast(`${gift.emoji} Gift sent! 💚`);
+  };
+  const share = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`I'm watching ${s.creator} live on Play Rwanda! 🔴🇷🇼`)}`, "_blank"); toast(t.copied); };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: DARKER, display: "flex", flexDirection: "column", fontFamily: "sans-serif" }}>
+      {giftNotif && <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 500, textAlign: "center", pointerEvents: "none" }}><div style={{ fontSize: 80 }}>{giftNotif.emoji}</div><div style={{ color: "#fff", fontWeight: 800, fontSize: 18 }}>{giftNotif.name}!</div></div>}
+
+      <div style={{ background: DARK, borderBottom: `1px solid ${BORDER}`, padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Av name={s.creator} size={32} />
+          <div><div style={{ fontWeight: 800, fontSize: 13, color: TEXT }}>{s.creator}</div><div style={{ fontSize: 10, color: MUTED }}>{s.title}</div></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", background: R, animation: "pulseDot 1.4s infinite" }} /><span style={{ fontSize: 9, fontWeight: 800, color: R }}>LIVE</span></div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: status === "live" ? "rgba(74,222,128,0.15)" : "rgba(232,0,45,0.15)", border: `1px solid ${status === "live" ? "rgba(74,222,128,0.4)" : "rgba(232,0,45,0.4)"}`, borderRadius: 8, padding: "3px 10px", fontSize: 10, color: status === "live" ? GREEN : R, fontWeight: 700 }}>
+            {status === "connecting" ? "📡 Connecting..." : status === "live" ? "🟢 Live" : status === "ended" ? "⭕ Ended" : "⚠️ Error"}
+          </div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 9, color: MUTED }}>{t.watching}</div><div style={{ fontWeight: 800, color: TEXT, fontSize: 13 }}>👁 {viewers.toLocaleString()}</div></div>
+          <button onClick={share} style={{ background: "#25D36622", border: "1px solid #25D36644", borderRadius: 8, color: "#25D366", padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>📤</button>
+          <button onClick={() => setShowGifts(true)} style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", border: "none", borderRadius: 8, color: "#fff", fontWeight: 800, padding: "6px 12px", cursor: "pointer", fontSize: 12 }}>🎁</button>
+          <button onClick={() => setShowChat(c => !c)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, color: MUTED, padding: "5px 10px", cursor: "pointer", fontSize: 12 }}>💬</button>
+          <button onClick={leave} style={{ background: "rgba(232,0,45,0.12)", border: "1px solid rgba(232,0,45,0.3)", color: R, borderRadius: 8, padding: "5px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>{t.leave}</button>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, position: "relative", background: "#000" }}>
+          {status === "error" && (
+            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "#0a0002", padding: 24 }}>
+              <div style={{ fontSize: 48 }}>⚠️</div>
+              <div style={{ color: R, fontWeight: 800, fontSize: 18 }}>Connection Error</div>
+              <div style={{ color: MUTED, fontSize: 13, maxWidth: 300, textAlign: "center", lineHeight: 1.7 }}>{errMsg}</div>
+              <button onClick={go} style={{ background: R, border: "none", borderRadius: 12, padding: "11px 24px", color: "#fff", fontWeight: 800, cursor: "pointer" }}>← Home</button>
+            </div>
+          )}
+          {status === "ended" && (
+            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "#060608" }}>
+              <div style={{ fontSize: 60 }}>📴</div>
+              <div style={{ color: TEXT, fontWeight: 800, fontSize: 20 }}>Stream ended</div>
+              <button onClick={go} style={{ background: R, border: "none", borderRadius: 12, padding: "11px 24px", color: "#fff", fontWeight: 800, cursor: "pointer" }}>← Home</button>
+            </div>
+          )}
+          {status === "connecting" && (
+            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, background: "radial-gradient(circle,#1a0507,#060608)" }}>
+              <div style={{ fontSize: 70, animation: "floatEmoji 3s ease-in-out infinite" }}>{s.emoji || "🎬"}</div>
+              <div style={{ color: TEXT, fontWeight: 800, fontSize: 16 }}>Connecting to {s.creator}...</div>
+              <div style={{ display: "flex", gap: 8 }}>{[0, 1, 2].map(i => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: R, animation: `dotBounce 0.7s ${i * 0.15}s ease-in-out infinite alternate` }} />)}</div>
+              <div style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>Powered by LiveKit 🚀</div>
+            </div>
+          )}
+          <video ref={videoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: status === "live" ? "block" : "none" }} />
+          {status === "live" && (
+            <>
+              <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 5, background: "rgba(0,0,0,0.65)", borderRadius: 8, padding: "4px 10px" }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: R, animation: "pulseDot 1.4s infinite" }} />
+                <span style={{ fontSize: 10, fontWeight: 800, color: R }}>LIVE</span>
+              </div>
+              <div style={{ position: "absolute", bottom: 16, left: 16, background: "rgba(0,0,0,0.75)", borderRadius: 10, padding: "10px 14px", border: `1px solid ${BORDER}` }}>
+                <div style={{ fontSize: 10, color: MUTED, marginBottom: 2 }}>✅ Access granted</div>
+                <div style={{ fontWeight: 800, color: TEXT, fontSize: 12 }}>Paid · {fmt(s.price, s.currency)}</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {showChat && (
+          <div style={{ width: 260, borderLeft: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", background: DARK }}>
+            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${BORDER}`, fontSize: 12, fontWeight: 700, color: MUTED }}>💬 {viewers.toLocaleString()} {t.watching}</div>
+            <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {messages.map((m, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                  <Av name={m.user} size={22} />
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: m.me ? R : m.isGift ? "#f59e0b" : MUTED }}>{m.user} </span>
+                    <span style={{ fontSize: 12, color: m.isGift ? "#f59e0b" : TEXT }}>{m.text}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "10px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 7 }}>
+              <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} placeholder="Say something..." style={{ flex: 1, background: "#0A0A0C", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "sans-serif", outline: "none" }} />
+              <button onClick={sendMsg} style={{ background: R, border: "none", borderRadius: 8, color: "#fff", fontWeight: 800, padding: "8px 12px", cursor: "pointer", fontSize: 13 }}>→</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showGifts && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={() => setShowGifts(false)}>
+          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: "24px 24px 16px 16px", padding: "24px 20px", width: "100%", maxWidth: 460, marginBottom: 8 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: TEXT }}>{t.gifts}</div>
+              <button onClick={() => setShowGifts(false)} style={{ background: "transparent", border: "none", color: MUTED, fontSize: 22, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
+              {GIFTS.map(g => (
+                <div key={g.id} onClick={() => { onGiftSent(g); setShowGifts(false); }} style={{ background: DARKER, border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
+                  <div style={{ fontSize: 32, marginBottom: 4 }}>{g.emoji}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: TEXT }}>{g.name}</div>
+                  <div style={{ color: R, fontSize: 11, fontWeight: 800, marginTop: 2 }}>{fmt(g.price, "RWF")}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes floatEmoji{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        @keyframes dotBounce{from{opacity:0.3;transform:translateY(0)}to{opacity:1;transform:translateY(-8px)}}
+      `}</style>
+    </div>
+  );
+}
   const t = LANG[lang];
   const peerRef = useRef(null);
   const videoRef = useRef(null);
