@@ -241,7 +241,7 @@ function StreamCard({ stream: s, onClick }) {
       }}
     >
       {/* YouTube-style 16:9 Thumbnail */}
-      <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", background: grad, borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ position: "relative", width: "100%", height: 185, background: grad, borderRadius: 8, overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0 }}>
           {s.thumbnail_url
             ? <img src={s.thumbnail_url} alt={s.title} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s ease", transform: hovered ? "scale(1.05)" : "scale(1)" }} />
@@ -558,7 +558,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
                   <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 24 }}>Be the first to go live today!</div>
                   <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>GO LIVE NOW</button>
                 </div>
-              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px 16px", padding: "8px 4px 20px" }}>
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px 20px", padding: "8px 4px 20px" }}>
                   {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
                 </div>
           }
