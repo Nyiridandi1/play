@@ -386,14 +386,7 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
           });
         });
 
-        // Timeout — if no stream after 15s
-        setTimeout(() => {
-          if (mounted && status === "connecting") {
-            setStatus("error");
-            setErrMsg("Host is not live yet. Try again in a moment!");
-          }
-        }, 15000);
-
+        // Keep trying - don't timeout
         chatIv = setInterval(() => {
           setViewers(v => v + Math.floor(Math.random() * 2));
           const u = FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)];
