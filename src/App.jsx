@@ -1573,11 +1573,47 @@ export default function App() {
   const go = () => { setScreen("home"); setSelected(null); setPaid(false); };
   const toast = msg => setToastMsg(msg);
 
+  // ✅ Auto login — restore session on page load
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).maybeSingle();
+        if (profile) {
+          if (profile.role === "creator") {
+            setCreator(profile);
+          } else {
+            setViewer(profile);
+          }
+        } else {
+          // Basic profile from auth
+          setViewer({ id: session.user.id, name: session.user.email?.split("@")[0], email: session.user.email, role: "viewer" });
+        }
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        setViewer(null);
+        setCreator(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     supabase.from("streams").select("*").eq("live", true).order("created_at", { ascending: false })
       .then(({ data }) => { setStreams(data || []); setLoadingStreams(false); })
       .catch(() => { setStreams([]); setLoadingStreams(false); });
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setViewer(null);
+    setCreator(null);
+    setScreen("home");
+  };
 
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
 
@@ -1596,7 +1632,7 @@ export default function App() {
         loadingStreams={loadingStreams}
         user={viewer}
         onLogin={() => setScreen("viewerAuth")}
-        onLogout={() => setViewer(null)}
+        onLogout={handleLogout}
         onGoLive={() => setScreen("creatorAuth")}
         onWatch={s => { setSelected(s); viewer ? setScreen("payment") : setScreen("viewerAuth"); }}
       />
