@@ -441,8 +441,8 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ flex: 1, position: "relative", background: "#000" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: window.innerWidth < 640 ? "column" : "row", overflow: "hidden" }}>
+        <div style={{ flex: window.innerWidth < 640 ? "none" : 1, height: window.innerWidth < 640 ? "40vh" : "auto", position: "relative", background: "#000" }}>
           {status === "error" && (
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "#0a0002", padding: 24 }}>
               <div style={{ fontSize: 48 }}>⚠️</div>
@@ -482,7 +482,7 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         </div>
 
         {showChat && (
-          <div style={{ width: 260, borderLeft: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", background: DARK }}>
+          <div style={{ width: window.innerWidth < 640 ? "100%" : 260, borderLeft: window.innerWidth < 640 ? "none" : `1px solid ${BORDER}`, borderTop: window.innerWidth < 640 ? `1px solid ${BORDER}` : "none", display: "flex", flexDirection: "column", background: DARK, flex: window.innerWidth < 640 ? 1 : "none" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${BORDER}`, fontSize: 12, fontWeight: 700, color: MUTED }}>💬 {viewers.toLocaleString()} {t.watching}</div>
             <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
               {messages.map((m, i) => (
