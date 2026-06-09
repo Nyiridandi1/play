@@ -1927,11 +1927,8 @@ export default function App() {
         streams={streams}
         loadingStreams={loadingStreams}
         user={viewer}
-        onLogin={() => setScreen("viewerAuth")}
-        onLogout={handleLogout}
         onGoLive={() => setScreen("creatorAuth")}
-        onWatch={s => { setSelected(s); viewer ? setScreen("payment") : setScreen("viewerAuth"); }}
-      />
+onWatch={s => { setSelected(s); setScreen("payment"); }}      />
     </>
   );
 }
