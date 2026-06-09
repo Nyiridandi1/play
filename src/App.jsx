@@ -229,6 +229,61 @@ function StreamCard({ stream: s, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        borderRadius: 8,
+        overflow: "visible",
+        cursor: "pointer",
+        position: "relative",
+        zIndex: hovered ? 10 : 1,
+        transform: hovered ? "scale(1.04) translateY(-4px)" : "scale(1)",
+        transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+        boxShadow: hovered ? "0 16px 48px rgba(0,0,0,0.8)" : "none",
+        background: "transparent",
+      }}
+    >
+      {/* YouTube-style 16:9 Thumbnail */}
+      <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", background: grad, borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0 }}>
+          {s.thumbnail_url
+            ? <img src={s.thumbnail_url} alt={s.title} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s ease", transform: hovered ? "scale(1.05)" : "scale(1)" }} />
+            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ fontSize: 48, transition: "transform 0.3s ease", transform: hovered ? "scale(1.1)" : "scale(1)" }}>{s.emoji || "🎬"}</div>
+              </div>
+          }
+          <div style={{ position: "absolute", inset: 0, background: hovered ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.25)", transition: "background 0.25s" }} />
+          <div style={{ position: "absolute", top: 8, left: 8 }}><LiveBadge /></div>
+          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.85)", borderRadius: 4, padding: "3px 8px", fontSize: 12, fontWeight: 700, color: C.white }}>{fmt(s.price, s.currency)}</div>
+          <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.75)", borderRadius: 4, padding: "3px 8px" }}>
+            <span style={{ fontSize: 10, color: C.textMuted }}>👁</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.white }}>{s.viewers?.toLocaleString()}</span>
+          </div>
+          <div style={{ position: "absolute", bottom: 8, right: 8, background: C.surface, borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: C.textMuted }}>{s.category}</div>
+
+          {/* Hover overlay with Watch button */}
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: hovered ? 1 : 0, transition: "opacity 0.2s" }}>
+            <div style={{ background: C.red, borderRadius: 50, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 4px 20px rgba(229,9,20,0.6)" }}>▶</div>
+          </div>
+        </div>
+      </div>
+
+      {/* YouTube-style Info Below */}
+      <div style={{ padding: "10px 4px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <Avatar name={s.creator} size={36} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.white, lineHeight: 1.3, marginBottom: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{s.title}</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 2 }}>{s.creator}</div>
+          <div style={{ fontSize: 12, color: C.textMuted }}>{s.viewers?.toLocaleString()} watching · {s.category}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
         borderRadius: 6,
         overflow: "visible",
         cursor: "pointer",
@@ -503,7 +558,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
                   <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 24 }}>Be the first to go live today!</div>
                   <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>GO LIVE NOW</button>
                 </div>
-              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px 16px", padding: "8px 4px 20px" }}>
                   {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
                 </div>
           }
