@@ -493,9 +493,16 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
             ? <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "60px 0" }}>
                 {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
               </div>
-            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
-                {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
-              </div>
+            : filtered.length === 0
+              ? <div style={{ textAlign: "center", padding: "80px 0" }}>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>📡</div>
+                  <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 12 }}>NO LIVE STREAMS RIGHT NOW</div>
+                  <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 24 }}>Be the first to go live today!</div>
+                  <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>GO LIVE NOW</button>
+                </div>
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
+                  {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
+                </div>
           }
 
           {/* Coming Soon Preview on Home */}
@@ -1568,8 +1575,8 @@ export default function App() {
 
   useEffect(() => {
     supabase.from("streams").select("*").eq("live", true).order("created_at", { ascending: false })
-      .then(({ data }) => { setStreams(data?.length > 0 ? data : MOCK_STREAMS); setLoadingStreams(false); })
-      .catch(() => { setStreams(MOCK_STREAMS); setLoadingStreams(false); });
+      .then(({ data }) => { setStreams(data || []); setLoadingStreams(false); })
+      .catch(() => { setStreams([]); setLoadingStreams(false); });
   }, []);
 
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
