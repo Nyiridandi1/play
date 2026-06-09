@@ -286,10 +286,101 @@ function StreamCard({ stream: s, onClick }) {
   );
 }
 
+// ── COMING SOON CARD ───────────────────────────────────────────────────────────
+function ComingSoonCard({ event: e, reminded, onRemind, getCountdown }) {
+  const [hovered, setHovered] = useState(false);
+  const gradients = [
+    "linear-gradient(135deg, #0a0a2d, #1a0a2d)",
+    "linear-gradient(135deg, #0a2d1a, #0a1a2d)",
+    "linear-gradient(135deg, #2d1a0a, #2d0a1a)",
+    "linear-gradient(135deg, #1a2d0a, #0a2d2a)",
+  ];
+  const grad = gradients[parseInt(e.id?.slice(-1) || 0) % gradients.length];
+  const countdown = getCountdown(e.event_date);
+  const eventDate = new Date(e.event_date);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderRadius: 6, overflow: "hidden", position: "relative",
+        zIndex: hovered ? 10 : 1,
+        transform: hovered ? "scale(1.05) translateY(-4px)" : "scale(1)",
+        transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+        boxShadow: hovered ? "0 20px 60px rgba(0,0,0,0.8)" : "none",
+        background: C.card,
+      }}
+    >
+      {/* Thumbnail */}
+      <div style={{ position: "relative", height: 152, background: grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 52, opacity: 0.7 }}>{e.emoji || "📅"}</div>
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />
+
+        {/* Coming Soon badge */}
+        <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.85)", border: `1px solid ${C.border}`, borderRadius: 4, padding: "3px 8px", display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa" }} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", letterSpacing: 1 }}>SOON</span>
+        </div>
+
+        {/* Countdown */}
+        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.85)", borderRadius: 4, padding: "3px 10px", fontSize: 12, fontWeight: 800, color: C.white, fontFamily: FONT.display, letterSpacing: 1 }}>
+          ⏰ {countdown}
+        </div>
+
+        {/* Price */}
+        <div style={{ position: "absolute", bottom: 8, right: 8, background: C.surface, borderRadius: 4, padding: "3px 8px", fontSize: 12, fontWeight: 700, color: C.white }}>{fmt(e.price, e.currency)}</div>
+
+        {/* Date */}
+        <div style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(0,0,0,0.75)", borderRadius: 4, padding: "3px 8px", fontSize: 10, color: C.textMuted }}>
+          {eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {eventDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: "12px 14px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <Avatar name={e.creator} size={26} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: C.white }}>{e.creator}</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>{e.handle}</div>
+          </div>
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: C.white, lineHeight: 1.3, marginBottom: 10 }}>{e.title}</div>
+        {e.description && <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6, marginBottom: 10 }}>{e.description}</div>}
+
+        <button
+          onClick={onRemind}
+          disabled={reminded}
+          className={reminded ? "" : "btn-red"}
+          style={{
+            width: "100%", border: "none", borderRadius: 6, padding: "9px", cursor: reminded ? "default" : "pointer",
+            background: reminded ? C.surface : C.red,
+            color: reminded ? "#a78bfa" : C.white,
+            fontWeight: 700, fontSize: 13, fontFamily: FONT.body,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            border: reminded ? `1px solid #a78bfa44` : "none",
+          }}
+        >
+          {reminded ? "✓ Reminder Set!" : `🔔 Remind Me · ${(e.remind_count || 0)} interested`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── HOME PAGE ──────────────────────────────────────────────────────────────────
-function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loadingStreams }) {
+function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loadingStreams, onLeaderboard, onAbout }) {
+  const [tab, setTab] = useState("home");
   const [cat, setCat] = useState("All");
   const [search, setSearch] = useState("");
+  const [events, setEvents] = useState([]);
+  const [remindedIds, setRemindedIds] = useState([]);
+
+  useEffect(() => {
+    supabase.from("events").select("*").order("event_date", { ascending: true })
+      .then(({ data }) => { if (data) setEvents(data); });
+  }, []);
 
   const filtered = streams.filter(s => {
     const mc = cat === "All" || s.category === cat;
@@ -299,92 +390,203 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
 
   const featured = filtered[0];
 
+  const handleRemind = async (event) => {
+    setRemindedIds(p => [...p, event.id]);
+    await supabase.from("events").update({ remind_count: (event.remind_count || 0) + 1 }).eq("id", event.id);
+  };
+
+  // Countdown helper
+  const getCountdown = (dateStr) => {
+    const diff = new Date(dateStr) - new Date();
+    if (diff <= 0) return "Starting soon!";
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const NAV_TABS = [
+    { id: "home", label: "Home" },
+    { id: "comingsoon", label: "Coming Soon" },
+    { id: "leaderboard", label: "Leaderboard" },
+    { id: "about", label: "About" },
+  ];
+
   return (
     <div style={{ width: "100vw", minHeight: "100vh", background: C.black, fontFamily: FONT.body, overflowX: "hidden", position: "relative" }}>
       <style>{GLOBAL_CSS}</style>
 
       {/* Navbar */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%)", padding: "0 4%" }}>
-        <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(0,0,0,0.97)", borderBottom: `1px solid ${C.border}`, padding: "0 4%" }}>
+        <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <Logo /></div>
+            <Logo onClick={() => setTab("home")} />
+            {/* Nav Tabs */}
+            <div style={{ display: "flex", gap: 4 }}>
+              {NAV_TABS.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} className="tab-btn" style={{ background: "transparent", border: "none", borderBottom: tab === t.id ? `2px solid ${C.red}` : "2px solid transparent", color: tab === t.id ? C.white : C.textMuted, fontWeight: tab === t.id ? 700 : 500, fontSize: 13, padding: "4px 14px", cursor: "pointer", fontFamily: FONT.body, height: 60, transition: "all 0.2s" }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {user
               ? <>
                 <Avatar name={user.name} size={32} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{user.name}</span>
-                <button className="nav-btn sign-in-btn" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>Sign Out</button>
+                <button className="btn-ghost" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body }}>Sign Out</button>
               </>
-              : <button className="btn-ghost" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500, transition: "all 0.2s" }}>Sign In</button>
+              : <button className="btn-ghost" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500 }}>Sign In</button>
             }
-            <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, letterSpacing: 0.5, transition: "all 0.2s" }}>Go Live</button>
+            <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body }}>Go Live</button>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      {featured && (
-        <div style={{ position: "relative", width: "100%", height: "65vh", minHeight: 420, background: "linear-gradient(135deg, #1a0505, #0a0a0a)", display: "flex", alignItems: "flex-end", paddingBottom: 64, paddingLeft: "4%", paddingRight: "4%" }}>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, opacity: 0.15 }}>{featured.emoji}</div>
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.9) 40%, transparent), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }} />
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 520, animation: "fadeIn 0.6s ease" }}>
-            <LiveBadge />
-            <div style={{ fontFamily: FONT.display, fontSize: 52, color: C.white, letterSpacing: 2, marginTop: 12, marginBottom: 8, lineHeight: 1 }}>{featured.title.toUpperCase()}</div>
-            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{featured.creator} · {featured.viewers?.toLocaleString()} watching</div>
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20 }}>{featured.category} · {fmt(featured.price, featured.currency)} to join</div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button className="hero-watch" onClick={() => onWatch(featured)} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 28px", cursor: "pointer", fontSize: 15, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>
-                ▶ Watch Now
-              </button>
-              <button className="hero-info" style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${C.border}`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>
-                + More Info
-              </button>
+      {/* ── HOME TAB ── */}
+      {tab === "home" && <>
+        {/* Hero */}
+        {featured && (
+          <div style={{ position: "relative", width: "100%", height: "65vh", minHeight: 420, background: "linear-gradient(135deg, #1a0505, #0a0a0a)", display: "flex", alignItems: "flex-end", paddingBottom: 64, paddingLeft: "4%", paddingRight: "4%", marginTop: 60 }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, opacity: 0.15 }}>{featured.emoji}</div>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.9) 40%, transparent), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }} />
+            <div style={{ position: "relative", zIndex: 2, maxWidth: 520, animation: "fadeIn 0.6s ease" }}>
+              <LiveBadge />
+              <div style={{ fontFamily: FONT.display, fontSize: 52, color: C.white, letterSpacing: 2, marginTop: 12, marginBottom: 8, lineHeight: 1 }}>{featured.title.toUpperCase()}</div>
+              <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{featured.creator} · {featured.viewers?.toLocaleString()} watching</div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20 }}>{featured.category} · {fmt(featured.price, featured.currency)} to join</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button className="hero-watch" onClick={() => onWatch(featured)} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 28px", cursor: "pointer", fontSize: 15, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>▶ Watch Now</button>
+                <button className="hero-info" style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${C.border}`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>+ More Info</button>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* Content */}
+        <div style={{ padding: "32px 4% 60px", marginTop: featured ? 0 : 80 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ position: "relative", flex: "1 1 280px", maxWidth: 400 }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: C.textMuted }}>🔍</span>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search streams or creators..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 16px 10px 40px", color: C.white, fontSize: 14, fontFamily: FONT.body, outline: "none" }} />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {CATS.map(c => (
+                <button className="cat-pill" key={c} onClick={() => setCat(c)} style={{ background: cat === c ? C.red : C.surface, border: `1px solid ${cat === c ? C.red : C.border}`, color: cat === c ? C.white : C.textMuted, borderRadius: 6, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body }}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 4, height: 24, background: C.red, borderRadius: 2 }} />
+            <span style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2 }}>LIVE NOW</span>
+            <div style={{ flex: 1, height: 1, background: C.border }} />
+            <span style={{ fontSize: 13, color: C.textMuted }}>{filtered.length} streams</span>
+          </div>
+
+          {loadingStreams
+            ? <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "60px 0" }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
+              </div>
+            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
+                {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
+              </div>
+          }
+
+          {/* Coming Soon Preview on Home */}
+          {events.length > 0 && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "32px 0 20px" }}>
+                <div style={{ width: 4, height: 24, background: C.red, borderRadius: 2 }} />
+                <span style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2 }}>COMING SOON</span>
+                <div style={{ flex: 1, height: 1, background: C.border }} />
+                <span onClick={() => setTab("comingsoon")} style={{ fontSize: 13, color: C.red, cursor: "pointer", fontWeight: 600 }}>See all →</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
+                {events.slice(0, 3).map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
+              </div>
+            </>
+          )}
+        </div>
+      </>}
+
+      {/* ── COMING SOON TAB ── */}
+      {tab === "comingsoon" && (
+        <div style={{ padding: "100px 4% 60px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+            <div style={{ width: 4, height: 32, background: C.red, borderRadius: 2 }} />
+            <span style={{ fontFamily: FONT.display, fontSize: 36, color: C.white, letterSpacing: 3 }}>COMING SOON</span>
+          </div>
+          {events.length === 0
+            ? <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontSize: 64, marginBottom: 16 }}>📅</div>
+                <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 12 }}>NO UPCOMING STREAMS</div>
+                <div style={{ color: C.textMuted, fontSize: 14 }}>Creators haven't scheduled anything yet. Check back soon!</div>
+              </div>
+            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+                {events.map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
+              </div>
+          }
         </div>
       )}
 
-      {/* Content */}
-      <div style={{ padding: "32px 4% 60px", marginTop: featured ? 0 : 80 }}>
-
-        {/* Search + Filter */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", flex: "1 1 280px", maxWidth: 400 }}>
-            <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: C.textMuted }}>🔍</span>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search streams or creators..."
-              style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 16px 10px 40px", color: C.white, fontSize: 14, fontFamily: FONT.body, outline: "none" }}
-            />
+      {/* ── LEADERBOARD TAB ── */}
+      {tab === "leaderboard" && (
+        <div style={{ padding: "100px 4% 60px", maxWidth: 700, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+            <div style={{ width: 4, height: 32, background: C.red, borderRadius: 2 }} />
+            <span style={{ fontFamily: FONT.display, fontSize: 36, color: C.white, letterSpacing: 3 }}>TOP CREATORS</span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {CATS.map(c => (
-              <button className="cat-pill" key={c} onClick={() => setCat(c)} style={{ background: cat === c ? C.red : C.surface, border: `1px solid ${cat === c ? C.red : C.border}`, color: cat === c ? C.white : C.textMuted, borderRadius: 6, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>
-                {c}
-              </button>
-            ))}
+          {[...streams].sort((a, b) => (b.totalEarned || b.total_earned || 0) - (a.totalEarned || a.total_earned || 0)).map((s, i) => (
+            <div className="stream-row" key={s.id} style={{ background: C.card, borderRadius: 10, border: `1px solid ${i < 3 ? "rgba(229,9,20,0.3)" : C.border}`, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
+              <div style={{ fontFamily: FONT.display, fontSize: 24, width: 36, textAlign: "center", color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : C.textMuted }}>
+                {i < 3 ? ["🥇","🥈","🥉"][i] : `#${i+1}`}
+              </div>
+              <div style={{ fontSize: 28 }}>{s.emoji || "🎤"}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{s.creator}</div>
+                <div style={{ color: C.textMuted, fontSize: 12 }}>{s.category}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 800, color: "#4ade80", fontSize: 16 }}>{fmt(s.totalEarned || s.total_earned || 0, s.currency || "RWF")}</div>
+                <div style={{ fontSize: 11, color: C.textMuted }}>total earned</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── ABOUT TAB ── */}
+      {tab === "about" && (
+        <div style={{ padding: "100px 4% 60px", maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ fontFamily: FONT.display, fontSize: 64, color: C.red, letterSpacing: 4, marginBottom: 12 }}>PLAY</div>
+            <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 16 }}>RWANDA'S PREMIER LIVE STREAMING PLATFORM</div>
+            <div style={{ color: C.textMuted, fontSize: 16, maxWidth: 500, margin: "0 auto", lineHeight: 1.8 }}>Watch and support your favorite creators live. Pay per view, send gifts, and be part of the moment.</div>
           </div>
-        </div>
-
-        {/* Section Title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <div style={{ width: 4, height: 24, background: C.red, borderRadius: 2 }} />
-          <span style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2 }}>LIVE NOW</span>
-          <div style={{ flex: 1, height: 1, background: C.border }} />
-          <span style={{ fontSize: 13, color: C.textMuted }}>{filtered.length} streams</span>
-        </div>
-
-        {/* Stream Grid */}
-        {loadingStreams
-          ? <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "60px 0" }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
+          {[
+            { emoji: "👁", title: "Browse for free", desc: "Discover all live streams happening right now — no signup needed." },
+            { emoji: "💳", title: "Pay to join", desc: "Unlock any stream instantly with MTN MoMo, Airtel Money, or Visa." },
+            { emoji: "🎬", title: "Watch & Chat", desc: "Enjoy the stream and interact with other viewers in real time." },
+            { emoji: "🎁", title: "Send Gifts", desc: "Show your appreciation by sending gifts to creators during their live stream." },
+            { emoji: "💰", title: "Creators get paid", desc: "Up to 95% of every payment goes directly to the creator — instantly." },
+            { emoji: "📅", title: "Coming Soon", desc: "Creators can schedule upcoming streams so you never miss a show." },
+          ].map((item, i) => (
+            <div key={i} className="stream-row" style={{ background: C.card, borderRadius: 12, padding: "20px 24px", border: `1px solid ${C.border}`, display: "flex", gap: 16, marginBottom: 12, alignItems: "flex-start" }}>
+              <div style={{ fontSize: 36, flexShrink: 0 }}>{item.emoji}</div>
+              <div>
+                <div style={{ fontFamily: FONT.display, fontSize: 18, color: C.white, letterSpacing: 1, marginBottom: 6 }}>{item.title.toUpperCase()}</div>
+                <div style={{ color: C.textMuted, fontSize: 14, lineHeight: 1.7 }}>{item.desc}</div>
+              </div>
             </div>
-          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
-              {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
-            </div>
-        }
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Footer */}
       <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "48px 4% 32px" }}>
@@ -428,6 +630,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
     </div>
   );
 }
+
 
 // ── HOST BROADCAST ─────────────────────────────────────────────────────────────
 function HostBroadcast({ stream: s, onEnd, toast }) {
@@ -1006,6 +1209,142 @@ function PaymentPage({ stream: s, go, onSuccess, viewer }) {
   );
 }
 
+// ── SCHEDULE TAB ──────────────────────────────────────────────────────────────
+function ScheduleTab({ creator, toast, inp }) {
+  const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", price: "", currency: "RWF", category: "Music", emoji: "🎤", event_date: "" });
+
+  useEffect(() => {
+    supabase.from("events").select("*").eq("creator_id", creator.id).order("event_date", { ascending: true })
+      .then(({ data }) => { if (data) setEvents(data); });
+  }, []);
+
+  const createEvent = async () => {
+    if (!form.title || !form.price || !form.event_date) { toast("Fill title, price and date!"); return; }
+    setLoading(true);
+    try {
+      const { data, error: e } = await supabase.from("events").insert({
+        creator_id: creator.id,
+        creator: creator.name,
+        handle: creator.handle || `@${creator.name?.toLowerCase()}`,
+        title: form.title,
+        description: form.description,
+        price: Number(form.price),
+        currency: form.currency,
+        category: form.category,
+        emoji: form.emoji,
+        event_date: new Date(form.event_date).toISOString(),
+        remind_count: 0,
+      }).select().single();
+      if (e) throw new Error(e.message);
+      setEvents(p => [data, ...p]);
+      setShowForm(false);
+      setForm({ title: "", description: "", price: "", currency: "RWF", category: "Music", emoji: "🎤", event_date: "" });
+      toast("Stream scheduled!");
+    } catch (err) { toast("Error: " + err.message); }
+    setLoading(false);
+  };
+
+  const deleteEvent = async (id) => {
+    await supabase.from("events").delete().eq("id", id);
+    setEvents(p => p.filter(e => e.id !== id));
+    toast("Event deleted!");
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 4, height: 20, background: C.red, borderRadius: 2 }} />
+          <span style={{ fontFamily: FONT.display, fontSize: 18, letterSpacing: 2 }}>SCHEDULE A STREAM</span>
+        </div>
+        <button className="btn-red" onClick={() => setShowForm(true)} style={{ background: C.red, border: "none", borderRadius: 8, padding: "10px 22px", color: C.white, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>+ SCHEDULE</button>
+      </div>
+
+      {events.length === 0 && !showForm
+        ? <div style={{ textAlign: "center", padding: "60px 0" }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>📅</div>
+            <div style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2, marginBottom: 10 }}>NO SCHEDULED STREAMS</div>
+            <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 20 }}>Let your fans know what's coming next!</div>
+            <button className="btn-red" onClick={() => setShowForm(true)} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>SCHEDULE YOUR FIRST STREAM</button>
+          </div>
+        : events.map(e => (
+          <div key={e.id} className="stream-row" style={{ background: C.card, borderRadius: 10, border: `1px solid ${C.border}`, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <div style={{ fontSize: 28 }}>{e.emoji}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{e.title}</div>
+                <div style={{ color: C.textMuted, fontSize: 13 }}>{new Date(e.event_date).toLocaleString()} · {fmt(e.price, e.currency)}</div>
+                {e.description && <div style={{ color: C.textMuted, fontSize: 12, marginTop: 4 }}>{e.description}</div>}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Interested</div>
+                <div style={{ fontWeight: 700, color: "#a78bfa" }}>🔔 {e.remind_count || 0}</div>
+              </div>
+              <button onClick={() => deleteEvent(e.id)} className="btn-danger" style={{ background: "transparent", border: `1px solid rgba(229,9,20,0.3)`, color: C.red, borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontFamily: FONT.body }}>Delete</button>
+            </div>
+          </div>
+        ))
+      }
+
+      {/* Schedule Form Modal */}
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, background: C.overlay, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={() => setShowForm(false)}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "32px 28px", width: "100%", maxWidth: 480, animation: "fadeIn 0.3s ease" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2, marginBottom: 24 }}>SCHEDULE A STREAM</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Stream Title *</label>
+                <input style={inp} placeholder="e.g. Music Concert Night" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Description (tell fans what to expect)</label>
+                <textarea style={{ ...inp, height: 80, resize: "none" }} placeholder="e.g. Join me for an exclusive live music show..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Date & Time *</label>
+                <input style={inp} type="datetime-local" value={form.event_date} onChange={e => setForm(p => ({ ...p, event_date: e.target.value }))} />
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Entry Price *</label>
+                  <input style={inp} type="number" placeholder="e.g. 500" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Currency</label>
+                  <select style={inp} value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}><option>RWF</option><option>USD</option></select>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Category</label>
+                  <select style={inp} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
+                    {CATS.filter(c => c !== "All").map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Emoji</label>
+                  <input style={inp} placeholder="🎤" value={form.emoji} onChange={e => setForm(p => ({ ...p, emoji: e.target.value }))} maxLength={2} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button className="btn-red" onClick={createEvent} disabled={loading} style={{ flex: 1, background: C.red, border: "none", borderRadius: 10, padding: "13px", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1, opacity: loading ? 0.7 : 1 }}>
+                  {loading ? "SAVING..." : "SCHEDULE STREAM"}
+                </button>
+                <button className="btn-surface" onClick={() => setShowForm(false)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "13px 20px", color: C.white, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── CREATOR STUDIO ─────────────────────────────────────────────────────────────
 function CreatorStudio({ creator, go, toast }) {
   const [tab, setTab] = useState("streams");
@@ -1071,7 +1410,7 @@ function CreatorStudio({ creator, go, toast }) {
 
       {/* Tabs */}
       <div style={{ background: "rgba(0,0,0,0.8)", borderBottom: `1px solid ${C.border}`, padding: "0 5%", display: "flex", gap: 4 }}>
-        {[{ id: "streams", label: "MY STREAMS" }, { id: "transactions", label: "TRANSACTIONS" }, { id: "payout", label: "PAYOUT" }].map(tb => (
+        {[{ id: "streams", label: "MY STREAMS" }, { id: "schedule", label: "SCHEDULE" }, { id: "transactions", label: "TRANSACTIONS" }, { id: "payout", label: "PAYOUT" }].map(tb => (
           <button key={tb.id} onClick={() => setTab(tb.id)} style={{ background: "transparent", border: "none", borderBottom: tab === tb.id ? `2px solid ${C.red}` : "2px solid transparent", color: tab === tb.id ? C.white : C.textMuted, fontWeight: 700, fontSize: 12, padding: "16px 18px", cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1.5, transition: "all 0.2s" }}>
             {tb.label}
           </button>
@@ -1124,6 +1463,8 @@ function CreatorStudio({ creator, go, toast }) {
             ))
           }
         </>}
+
+        {tab === "schedule" && <ScheduleTab creator={creator} toast={toast} inp={inp} />}
 
         {tab === "transactions" && <>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
