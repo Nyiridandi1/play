@@ -139,15 +139,18 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
         const { token } = await res.json();
 
         // Dynamically import LiveKit
-        const { Room, RoomEvent, createLocalTracks } = await import("livekit-client");
+        const { Room, RoomEvent, createLocalVideoTrack, createLocalAudioTrack } = await import("livekit-client");
 
-        // Create local tracks (camera + mic)
-        const tracks = await createLocalTracks({ audio: true, video: { width: 1280, height: 720 } });
+        // Get camera using native browser API for local preview
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true,
+        });
 
-        // Show local preview
-        const videoTrack = tracks.find(t => t.kind === "video");
-        if (videoTrack && videoRef.current) {
-          videoTrack.attach(videoRef.current);
+        // Show local preview using native video element
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play();
         }
 
         // Connect to LiveKit room
@@ -163,10 +166,11 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
 
         await room.connect("wss://play-rw-psye6scu.livekit.cloud", token);
 
-        // Publish tracks
-        for (const track of tracks) {
-          await room.localParticipant.publishTrack(track);
-        }
+        // Publish camera and mic to LiveKit
+        const videoTrack = await createLocalVideoTrack({ width: 1280, height: 720 });
+        const audioTrack = await createLocalAudioTrack();
+        await room.localParticipant.publishTrack(videoTrack);
+        await room.localParticipant.publishTrack(audioTrack);
 
         if (mounted) {
           setStatus("live");
@@ -206,6 +210,10 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
     }
   };
   const endStream = async () => {
+    // Stop native media stream
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+    }
     if (roomRef.current) roomRef.current.disconnect();
     await supabase.from("streams").update({ live: false, peer_id: null }).eq("id", s.id);
     toast(`✅ Stream ended! Earned ~${Math.round(earnings).toLocaleString()} RWF 💚`);
@@ -297,7 +305,7 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
     const connect = async () => {
       try {
         // Get viewer token
-        const res = await fetch(`/api/livekit-token?room=${s.id}&username=${user.name}-${Date.now()}&isHost=false`);
+        const res = await fetch(`/api/livekit-token?room=${s.id}&username=${encodeURIComponent(user.name)}-${Date.now()}&isHost=false`);
         const { token } = await res.json();
 
         const { Room, RoomEvent, Track } = await import("livekit-client");
@@ -305,17 +313,27 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         const room = new Room();
         roomRef.current = room;
 
-        // When host publishes video, show it
-        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        // When host publishes video track, attach it
+        room.on(RoomEvent.TrackSubscribed, (track) => {
           if (!mounted) return;
           if (track.kind === Track.Kind.Video) {
-            track.attach(videoRef.current);
+            const element = track.attach();
+            element.style.position = "absolute";
+            element.style.inset = "0";
+            element.style.width = "100%";
+            element.style.height = "100%";
+            element.style.objectFit = "cover";
+            if (videoRef.current) {
+              videoRef.current.innerHTML = "";
+              videoRef.current.appendChild(element);
+            }
             setStatus("live");
           }
         });
 
         room.on(RoomEvent.TrackUnsubscribed, (track) => {
           if (track.kind === "video") {
+            track.detach();
             if (mounted) setStatus("ended");
           }
         });
@@ -330,11 +348,20 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
 
         await room.connect("wss://play-rw-psye6scu.livekit.cloud", token);
 
-        // Check if host is already publishing
+        // Check if host already publishing
         room.remoteParticipants.forEach(participant => {
-          participant.trackPublications.forEach(publication => {
-            if (publication.track && publication.track.kind === "video") {
-              publication.track.attach(videoRef.current);
+          participant.trackPublications.forEach(pub => {
+            if (pub.track && pub.track.kind === Track.Kind.Video) {
+              const element = pub.track.attach();
+              element.style.position = "absolute";
+              element.style.inset = "0";
+              element.style.width = "100%";
+              element.style.height = "100%";
+              element.style.objectFit = "cover";
+              if (videoRef.current) {
+                videoRef.current.innerHTML = "";
+                videoRef.current.appendChild(element);
+              }
               if (mounted) setStatus("live");
             }
           });
@@ -427,7 +454,7 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
               <div style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>Powered by LiveKit 🚀</div>
             </div>
           )}
-          <video ref={videoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: status === "live" ? "block" : "none" }} />
+          <div ref={videoRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: status === "live" ? "block" : "none" }} />
           {status === "live" && (
             <>
               <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 5, background: "rgba(0,0,0,0.65)", borderRadius: 8, padding: "4px 10px" }}>
