@@ -147,10 +147,17 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
           audio: true,
         });
 
-        // Show local preview using native video element
+        // Set live first so video element renders, then attach stream
+        if (mounted) setStatus("live");
+
+        // Wait a tick for the video element to render
+        await new Promise(r => setTimeout(r, 100));
+
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          videoRef.current.play();
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
+          await videoRef.current.play().catch(e => console.warn("Preview:", e));
         }
 
         // Connect to LiveKit room
@@ -173,7 +180,6 @@ function HostBroadcast({ stream: s, onEnd, toast }) {
         await room.localParticipant.publishTrack(audioTrack);
 
         if (mounted) {
-          setStatus("live");
           toast("🔴 You are LIVE! Viewers can see you! 🇷🇼");
           await supabase.from("streams").update({ live: true, peer_id: room.name }).eq("id", s.id);
           tIv = setInterval(() => setSeconds(d => d + 1), 1000);
