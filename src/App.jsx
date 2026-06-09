@@ -362,13 +362,27 @@ function ComingSoonCard({ event: e, reminded, onRemind, getCountdown }) {
   );
 }
 
+
+// ── CATEGORY CONFIG ────────────────────────────────────────────────────────────
+const CAT_CONFIG = {
+  Music:   { icon: "🎵", color: "#8B5CF6" },
+  Comedy:  { icon: "😂", color: "#F59E0B" },
+  Food:    { icon: "🍲", color: "#10B981" },
+  Fitness: { icon: "💪", color: "#EF4444" },
+  Art:     { icon: "🎨", color: "#3B82F6" },
+  Tech:    { icon: "💻", color: "#06B6D4" },
+  Gaming:  { icon: "🎮", color: "#6366F1" },
+  Podcasts:{ icon: "🎙️", color: "#EC4899" },
+};
+
 // ── HOME PAGE ──────────────────────────────────────────────────────────────────
-function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loadingStreams, onLeaderboard, onAbout }) {
+function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loadingStreams }) {
   const [tab, setTab] = useState("home");
   const [cat, setCat] = useState("All");
   const [search, setSearch] = useState("");
   const [events, setEvents] = useState([]);
   const [remindedIds, setRemindedIds] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     supabase.from("events").select("*").order("event_date", { ascending: true })
@@ -381,14 +395,11 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
     return mc && ms;
   });
 
-  const featured = filtered[0];
-
   const handleRemind = async (event) => {
     setRemindedIds(p => [...p, event.id]);
     await supabase.from("events").update({ remind_count: (event.remind_count || 0) + 1 }).eq("id", event.id);
   };
 
-  // Countdown helper
   const getCountdown = (dateStr) => {
     const diff = new Date(dateStr) - new Date();
     if (diff <= 0) return "Starting soon!";
@@ -400,236 +411,453 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
     return `${m}m`;
   };
 
-  const NAV_TABS = [
-    { id: "home", label: "Home" },
-    { id: "comingsoon", label: "Coming Soon" },
-    { id: "leaderboard", label: "Leaderboard" },
-    { id: "about", label: "About" },
+  const topCreators = [...streams].sort((a, b) => (b.totalEarned || b.total_earned || 0) - (a.totalEarned || a.total_earned || 0)).slice(0, 5);
+  const totalEarned = streams.reduce((acc, s) => acc + (s.total_earned || 0), 0);
+
+  const SIDEBAR_ITEMS = [
+    { id: "home", icon: "🏠", label: "Home" },
+    { id: "comingsoon", icon: "📅", label: "Coming Soon" },
+    { id: "leaderboard", icon: "🏆", label: "Leaderboard" },
+    { id: "about", icon: "ℹ️", label: "About" },
   ];
 
   return (
-    <div style={{ width: "100vw", minHeight: "100vh", background: C.black, fontFamily: FONT.body, overflowX: "hidden", position: "relative" }}>
+    <div style={{ width: "100vw", minHeight: "100vh", background: C.black, fontFamily: FONT.body, display: "flex", flexDirection: "column" }}>
       <style>{GLOBAL_CSS}</style>
 
-      {/* Navbar */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(0,0,0,0.97)", borderBottom: `1px solid ${C.border}`, padding: "0 4%" }}>
-        <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <Logo onClick={() => setTab("home")} />
-            {/* Nav Tabs */}
-            <div style={{ display: "flex", gap: 4 }}>
-              {NAV_TABS.map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} className="tab-btn" style={{ background: "transparent", border: "none", borderBottom: tab === t.id ? `2px solid ${C.red}` : "2px solid transparent", color: tab === t.id ? C.white : C.textMuted, fontWeight: tab === t.id ? 700 : 500, fontSize: 13, padding: "4px 14px", cursor: "pointer", fontFamily: FONT.body, height: 60, transition: "all 0.2s" }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {user
-              ? <>
+      {/* ── TOP NAVBAR ── */}
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, background: "rgba(10,10,10,0.98)", borderBottom: `1px solid ${C.border}`, height: 60, display: "flex", alignItems: "center", padding: "0 20px", gap: 16 }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <button onClick={() => setSidebarOpen(s => !s)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, padding: 4 }}>☰</button>
+          <Logo onClick={() => setTab("home")} />
+        </div>
+
+        {/* Nav Links */}
+        <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+          {[
+            { id: "home", label: "Home" },
+            { id: "comingsoon", label: "Coming Soon" },
+            { id: "leaderboard", label: "Leaderboard" },
+            { id: "about", label: "About" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} className="tab-btn" style={{ background: "transparent", border: "none", borderBottom: tab === t.id ? `2px solid ${C.red}` : "2px solid transparent", color: tab === t.id ? C.white : C.textMuted, fontWeight: tab === t.id ? 700 : 500, fontSize: 13, padding: "4px 14px", cursor: "pointer", fontFamily: FONT.body, height: 60 }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar */}
+        <div style={{ flex: 1, maxWidth: 400, position: "relative", margin: "0 16px" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.textMuted, fontSize: 14 }}>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search streams, creators or categories..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: "8px 16px 8px 36px", color: C.white, fontSize: 13, fontFamily: FONT.body, outline: "none" }} />
+        </div>
+
+        {/* Right side */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", flexShrink: 0 }}>
+          {user
+            ? <>
                 <Avatar name={user.name} size={32} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{user.name}</span>
-                <button className="btn-ghost" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body }}>Sign Out</button>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{user.name}</div>
+                </div>
+                <button className="btn-ghost" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontFamily: FONT.body }}>Sign Out</button>
               </>
-              : <button className="btn-ghost" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500 }}>Sign In</button>
-            }
-            <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body }}>Go Live</button>
-          </div>
+            : <button className="btn-ghost" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body }}>Sign In</button>
+          }
+          <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 18px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10 }}>🔴</span> Go Live
+          </button>
         </div>
       </nav>
 
-      {/* ── HOME TAB ── */}
-      {tab === "home" && <>
-        {/* Hero */}
-        {featured && (
-          <div style={{ position: "relative", width: "100%", height: "65vh", minHeight: 420, background: "linear-gradient(135deg, #1a0505, #0a0a0a)", display: "flex", alignItems: "flex-end", paddingBottom: 64, paddingLeft: "4%", paddingRight: "4%", marginTop: 60 }}>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, opacity: 0.15 }}>{featured.emoji}</div>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.9) 40%, transparent), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }} />
-            <div style={{ position: "relative", zIndex: 2, maxWidth: 520, animation: "fadeIn 0.6s ease" }}>
-              <LiveBadge />
-              <div style={{ fontFamily: FONT.display, fontSize: 52, color: C.white, letterSpacing: 2, marginTop: 12, marginBottom: 8, lineHeight: 1 }}>{featured.title.toUpperCase()}</div>
-              <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{featured.creator} · {featured.viewers?.toLocaleString()} watching</div>
-              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20 }}>{featured.category} · {fmt(featured.price, featured.currency)} to join</div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button className="hero-watch" onClick={() => onWatch(featured)} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 28px", cursor: "pointer", fontSize: 15, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>▶ Watch Now</button>
-                <button className="hero-info" style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${C.border}`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>+ More Info</button>
+      {/* ── BODY: SIDEBAR + CONTENT + RIGHT PANEL ── */}
+      <div style={{ display: "flex", marginTop: 60, flex: 1, minHeight: "calc(100vh - 60px)" }}>
+
+        {/* ── LEFT SIDEBAR ── */}
+        {sidebarOpen && (
+          <div style={{ width: 220, flexShrink: 0, background: C.black, borderRight: `1px solid ${C.border}`, position: "fixed", top: 60, left: 0, bottom: 0, overflowY: "auto", zIndex: 100, padding: "16px 0" }}>
+
+            {/* Nav Items */}
+            <div style={{ marginBottom: 8 }}>
+              {SIDEBAR_ITEMS.map(item => (
+                <button key={item.id} onClick={() => setTab(item.id)} className="tab-btn" style={{ width: "100%", background: tab === item.id ? "rgba(229,9,20,0.1)" : "transparent", border: "none", borderLeft: tab === item.id ? `3px solid ${C.red}` : "3px solid transparent", color: tab === item.id ? C.white : C.textMuted, fontWeight: tab === item.id ? 700 : 400, fontSize: 14, padding: "10px 20px", cursor: "pointer", fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                  <span style={{ fontSize: 18 }}>{item.icon}</span> {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ height: 1, background: C.border, margin: "8px 16px" }} />
+
+            {/* Categories */}
+            <div style={{ padding: "8px 20px 6px", fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>Categories</div>
+            {Object.entries(CAT_CONFIG).map(([name, cfg]) => (
+              <button key={name} onClick={() => { setCat(name); setTab("home"); }} className="tab-btn" style={{ width: "100%", background: cat === name && tab === "home" ? "rgba(229,9,20,0.1)" : "transparent", border: "none", borderLeft: cat === name && tab === "home" ? `3px solid ${C.red}` : "3px solid transparent", color: cat === name && tab === "home" ? C.white : C.textMuted, fontSize: 13, padding: "8px 20px", cursor: "pointer", fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
+                <span style={{ fontSize: 16 }}>{cfg.icon}</span> {name}
+              </button>
+            ))}
+
+            <div style={{ height: 1, background: C.border, margin: "12px 16px" }} />
+
+            {/* Go Live CTA */}
+            <div style={{ padding: "16px 16px" }}>
+              <div style={{ background: "linear-gradient(135deg, #1a0505, #2d0505)", borderRadius: 10, padding: "16px", border: `1px solid rgba(229,9,20,0.2)` }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 4 }}>Go Live. Get Paid.</div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Share your talent and earn from your fans</div>
+                <button className="btn-red" onClick={onGoLive} style={{ width: "100%", background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px", cursor: "pointer", fontSize: 12, fontFamily: FONT.body }}>Start Streaming</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Content */}
-        <div style={{ padding: "32px 4% 60px", marginTop: featured ? 0 : 80 }}>
-          <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ position: "relative", flex: "1 1 280px", maxWidth: 400 }}>
-              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: C.textMuted }}>🔍</span>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search streams or creators..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 16px 10px 40px", color: C.white, fontSize: 14, fontFamily: FONT.body, outline: "none" }} />
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {CATS.map(c => (
-                <button className="cat-pill" key={c} onClick={() => setCat(c)} style={{ background: cat === c ? C.red : C.surface, border: `1px solid ${cat === c ? C.red : C.border}`, color: cat === c ? C.white : C.textMuted, borderRadius: 6, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body }}>
-                  {c}
+        {/* ── MAIN CONTENT ── */}
+        <div style={{ flex: 1, marginLeft: sidebarOpen ? 220 : 0, marginRight: 300, transition: "margin 0.3s", overflowX: "hidden" }}>
+
+          {/* ── HOME TAB ── */}
+          {tab === "home" && <>
+
+            {/* Hero Banner - Auto Sliding Carousel */}
+            {(() => {
+              const SLIDES = [
+                {
+                  img: "/ChatGPT Image Jun 9, 2026, 03_50_02 PM.png",
+                  tag: "🔴 LIVE STREAMING PLATFORM",
+                  title1: "CREATE. ",
+                  title1Red: "ENTERTAIN.",
+                  title2: " EARN.",
+                  sub1: "Where Musicians, Comedians and Creators",
+                  sub2: "Connect with Fans",
+                },
+                {
+                  img: "/ChatGPT Image Jun 9, 2026, 03_28_22 PM.png",
+                  tag: "🎵 RWANDA'S #1 PLATFORM",
+                  title1: "DISCOVER RWANDA'S ",
+                  title1Red: "BEST",
+                  title2: " LIVE CREATORS",
+                  sub1: "Watch live. Support talent.",
+                  sub2: "Earn together. 🇷🇼",
+                },
+              ];
+              const [slide, setSlide] = useState(0);
+              const [fade, setFade] = useState(true);
+
+              useEffect(() => {
+                const iv = setInterval(() => {
+                  setFade(false);
+                  setTimeout(() => {
+                    setSlide(s => (s + 1) % SLIDES.length);
+                    setFade(true);
+                  }, 400);
+                }, 5000);
+                return () => clearInterval(iv);
+              }, []);
+
+              const s = SLIDES[slide];
+              return (
+                <div style={{ position: "relative", width: "100%", height: 340, overflow: "hidden" }}>
+                  <img src={s.img} alt="hero" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", transition: "opacity 0.4s ease", opacity: fade ? 1 : 0 }} />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.92) 35%, rgba(0,0,0,0.3) 70%, transparent), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%)" }} />
+                  <div style={{ position: "absolute", bottom: 40, left: 32, maxWidth: 500, transition: "opacity 0.4s ease", opacity: fade ? 1 : 0 }}>
+                    <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>{s.tag}</div>
+                    <div style={{ fontFamily: FONT.display, fontSize: 44, color: C.white, letterSpacing: 2, lineHeight: 1, marginBottom: 10 }}>
+                      {s.title1}<span style={{ color: C.red }}>{s.title1Red}</span>{s.title2}
+                    </div>
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginBottom: 4 }}>{s.sub1}</div>
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>{s.sub2}</div>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <button className="btn-white hero-watch" onClick={() => filtered[0] && onWatch(filtered[0])} style={{ background: C.white, border: "none", borderRadius: 6, color: C.black, fontWeight: 700, padding: "12px 24px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 8 }}>▶ Watch Live Now</button>
+                      <button className="hero-info btn-ghost" onClick={onGoLive} style={{ background: "rgba(255,255,255,0.1)", border: `1px solid rgba(255,255,255,0.3)`, borderRadius: 6, color: C.white, fontWeight: 600, padding: "12px 20px", cursor: "pointer", fontSize: 14, fontFamily: FONT.body }}>▶ Start Streaming</button>
+                    </div>
+                  </div>
+                  {/* Dots */}
+                  <div style={{ position: "absolute", bottom: 14, left: 32, display: "flex", gap: 6 }}>
+                    {SLIDES.map((_, i) => (
+                      <div key={i} onClick={() => { setFade(false); setTimeout(() => { setSlide(i); setFade(true); }, 400); }} style={{ width: i === slide ? 20 : 6, height: 6, borderRadius: 3, background: i === slide ? C.red : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "all 0.3s ease" }} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Category Pills */}
+            <div style={{ padding: "20px 24px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="cat-pill" onClick={() => setCat("All")} style={{ background: cat === "All" ? C.red : C.surface, border: `1px solid ${cat === "All" ? C.red : C.border}`, color: cat === "All" ? C.white : C.textMuted, borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body }}>All</button>
+              {Object.entries(CAT_CONFIG).map(([name, cfg]) => (
+                <button className="cat-pill" key={name} onClick={() => setCat(name)} style={{ background: cat === name ? C.red : C.surface, border: `1px solid ${cat === name ? C.red : C.border}`, color: cat === name ? C.white : C.textMuted, borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT.body, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>{cfg.icon}</span> {name}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{ width: 4, height: 24, background: C.red, borderRadius: 2 }} />
-            <span style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2 }}>LIVE NOW</span>
-            <div style={{ flex: 1, height: 1, background: C.border }} />
-            <span style={{ fontSize: 13, color: C.textMuted }}>{filtered.length} streams</span>
-          </div>
-
-          {loadingStreams
-            ? <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "60px 0" }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
+            {/* Live Now */}
+            <div style={{ padding: "20px 24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <span style={{ fontSize: 16 }}>📡</span>
+                <span style={{ fontFamily: FONT.display, fontSize: 20, color: C.white, letterSpacing: 2 }}>LIVE NOW</span>
+                <div style={{ flex: 1, height: 1, background: C.border, marginLeft: 8 }} />
+                <span style={{ fontSize: 12, color: C.textMuted }}>{filtered.length} streams</span>
               </div>
-            : filtered.length === 0
-              ? <div style={{ textAlign: "center", padding: "80px 0" }}>
-                  <div style={{ fontSize: 64, marginBottom: 16 }}>📡</div>
-                  <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 12 }}>NO LIVE STREAMS RIGHT NOW</div>
-                  <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 24 }}>Be the first to go live today!</div>
-                  <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>GO LIVE NOW</button>
+
+              {loadingStreams
+                ? <div style={{ display: "flex", gap: 10, padding: "40px 0" }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
+                  </div>
+                : filtered.length === 0
+                  ? <div style={{ textAlign: "center", padding: "60px 0" }}>
+                      <div style={{ fontSize: 56, marginBottom: 12 }}>📡</div>
+                      <div style={{ fontFamily: FONT.display, fontSize: 24, color: C.white, letterSpacing: 2, marginBottom: 8 }}>NO LIVE STREAMS RIGHT NOW</div>
+                      <div style={{ color: C.textMuted, fontSize: 14, marginBottom: 20 }}>Be the first to go live today!</div>
+                      <button className="btn-red" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 8, padding: "12px 28px", color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT.display, letterSpacing: 1 }}>GO LIVE NOW</button>
+                    </div>
+                  : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px 16px" }}>
+                      {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
+                    </div>
+              }
+            </div>
+
+            {/* Browse Categories */}
+            <div style={{ padding: "0 24px 24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <span style={{ fontFamily: FONT.display, fontSize: 20, color: C.white, letterSpacing: 2 }}>BROWSE CATEGORIES</span>
+                <div style={{ flex: 1, height: 1, background: C.border, marginLeft: 8 }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+                {Object.entries(CAT_CONFIG).map(([name, cfg]) => {
+                  const count = streams.filter(s => s.category === name).length;
+                  return (
+                    <div key={name} onClick={() => setCat(name)} className="pay-card" style={{ background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}11)`, border: `1px solid ${cfg.color}33`, borderRadius: 10, padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ fontSize: 24, background: `${cfg.color}22`, borderRadius: 8, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>{cfg.icon}</div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: C.white }}>{name}</div>
+                        <div style={{ fontSize: 11, color: C.textMuted }}>{count} Live</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Coming Soon Preview */}
+            {events.length > 0 && (
+              <div style={{ padding: "0 24px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontFamily: FONT.display, fontSize: 20, color: C.white, letterSpacing: 2 }}>COMING SOON</span>
+                  <div style={{ flex: 1, height: 1, background: C.border, marginLeft: 8 }} />
+                  <span onClick={() => setTab("comingsoon")} style={{ fontSize: 13, color: C.red, cursor: "pointer", fontWeight: 600 }}>See all →</span>
                 </div>
-              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px 20px", padding: "8px 4px 20px" }}>
-                  {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                  {events.slice(0, 3).map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
                 </div>
-          }
+              </div>
+            )}
 
-          {/* Coming Soon Preview on Home */}
-          {events.length > 0 && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "32px 0 20px" }}>
-                <div style={{ width: 4, height: 24, background: C.red, borderRadius: 2 }} />
-                <span style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 2 }}>COMING SOON</span>
-                <div style={{ flex: 1, height: 1, background: C.border }} />
-                <span onClick={() => setTab("comingsoon")} style={{ fontSize: 13, color: C.red, cursor: "pointer", fontWeight: 600 }}>See all →</span>
+            {/* How it Works */}
+            <div style={{ padding: "0 24px 40px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                {[
+                  { icon: "▶", title: "Go Live Instantly", desc: "Start streaming in seconds" },
+                  { icon: "💰", title: "Earn Money", desc: "Receive tips, gifts and paid subscriptions" },
+                  { icon: "📱", title: "Mobile Money", desc: "Cash out easily via MTN MoMo & Airtel" },
+                  { icon: "👥", title: "Build Your Community", desc: "Connect with fans and grow your brand" },
+                  { icon: "🎯", title: "24/7 Support", desc: "We're here to help you anytime" },
+                ].map((item, i) => (
+                  <div key={i} style={{ background: C.card, borderRadius: 10, padding: "16px", border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.white, marginBottom: 4 }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{item.desc}</div>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
-                {events.slice(0, 3).map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
+            </div>
+          </>}
+
+          {/* ── COMING SOON TAB ── */}
+          {tab === "comingsoon" && (
+            <div style={{ padding: "32px 24px 60px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+                <div style={{ width: 4, height: 28, background: C.red, borderRadius: 2 }} />
+                <span style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 3 }}>COMING SOON</span>
               </div>
-            </>
+              {events.length === 0
+                ? <div style={{ textAlign: "center", padding: "80px 0" }}>
+                    <div style={{ fontSize: 64, marginBottom: 16 }}>📅</div>
+                    <div style={{ fontFamily: FONT.display, fontSize: 24, color: C.white, letterSpacing: 2, marginBottom: 12 }}>NO UPCOMING STREAMS</div>
+                    <div style={{ color: C.textMuted, fontSize: 14 }}>Creators haven't scheduled anything yet!</div>
+                  </div>
+                : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+                    {events.map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
+                  </div>
+              }
+            </div>
           )}
-        </div>
-      </>}
 
-      {/* ── COMING SOON TAB ── */}
-      {tab === "comingsoon" && (
-        <div style={{ padding: "100px 4% 60px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-            <div style={{ width: 4, height: 32, background: C.red, borderRadius: 2 }} />
-            <span style={{ fontFamily: FONT.display, fontSize: 36, color: C.white, letterSpacing: 3 }}>COMING SOON</span>
-          </div>
-          {events.length === 0
-            ? <div style={{ textAlign: "center", padding: "80px 0" }}>
-                <div style={{ fontSize: 64, marginBottom: 16 }}>📅</div>
-                <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 12 }}>NO UPCOMING STREAMS</div>
-                <div style={{ color: C.textMuted, fontSize: 14 }}>Creators haven't scheduled anything yet. Check back soon!</div>
+          {/* ── LEADERBOARD TAB ── */}
+          {tab === "leaderboard" && (
+            <div style={{ padding: "32px 24px 60px", maxWidth: 700 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+                <div style={{ width: 4, height: 28, background: C.red, borderRadius: 2 }} />
+                <span style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 3 }}>TOP CREATORS</span>
               </div>
-            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
-                {events.map(e => <ComingSoonCard key={e.id} event={e} reminded={remindedIds.includes(e.id)} onRemind={() => handleRemind(e)} getCountdown={getCountdown} />)}
-              </div>
-          }
-        </div>
-      )}
-
-      {/* ── LEADERBOARD TAB ── */}
-      {tab === "leaderboard" && (
-        <div style={{ padding: "100px 4% 60px", maxWidth: 700, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-            <div style={{ width: 4, height: 32, background: C.red, borderRadius: 2 }} />
-            <span style={{ fontFamily: FONT.display, fontSize: 36, color: C.white, letterSpacing: 3 }}>TOP CREATORS</span>
-          </div>
-          {[...streams].sort((a, b) => (b.totalEarned || b.total_earned || 0) - (a.totalEarned || a.total_earned || 0)).map((s, i) => (
-            <div className="stream-row" key={s.id} style={{ background: C.card, borderRadius: 10, border: `1px solid ${i < 3 ? "rgba(229,9,20,0.3)" : C.border}`, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-              <div style={{ fontFamily: FONT.display, fontSize: 24, width: 36, textAlign: "center", color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : C.textMuted }}>
-                {i < 3 ? ["🥇","🥈","🥉"][i] : `#${i+1}`}
-              </div>
-              <div style={{ fontSize: 28 }}>{s.emoji || "🎤"}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{s.creator}</div>
-                <div style={{ color: C.textMuted, fontSize: 12 }}>{s.category}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 800, color: "#4ade80", fontSize: 16 }}>{fmt(s.totalEarned || s.total_earned || 0, s.currency || "RWF")}</div>
-                <div style={{ fontSize: 11, color: C.textMuted }}>total earned</div>
-              </div>
+              {[...streams].sort((a, b) => (b.totalEarned || b.total_earned || 0) - (a.totalEarned || a.total_earned || 0)).map((s, i) => (
+                <div className="stream-row" key={s.id} style={{ background: C.card, borderRadius: 10, border: `1px solid ${i < 3 ? "rgba(229,9,20,0.3)" : C.border}`, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
+                  <div style={{ fontFamily: FONT.display, fontSize: 22, width: 32, textAlign: "center", color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : C.textMuted }}>
+                    {i < 3 ? ["🥇","🥈","🥉"][i] : `#${i+1}`}
+                  </div>
+                  <Avatar name={s.creator} size={40} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{s.creator}</div>
+                    <div style={{ color: C.textMuted, fontSize: 12 }}>{s.handle} · {s.category}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontWeight: 800, color: "#4ade80", fontSize: 16 }}>{fmt(s.totalEarned || s.total_earned || 0, s.currency || "RWF")}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted }}>total earned</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* ── ABOUT TAB ── */}
-      {tab === "about" && (
-        <div style={{ padding: "100px 4% 60px", maxWidth: 760, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <div style={{ fontFamily: FONT.display, fontSize: 64, color: C.red, letterSpacing: 4, marginBottom: 12 }}>PLAY</div>
-            <div style={{ fontFamily: FONT.display, fontSize: 28, color: C.white, letterSpacing: 2, marginBottom: 16 }}>RWANDA'S PREMIER LIVE STREAMING PLATFORM</div>
-            <div style={{ color: C.textMuted, fontSize: 16, maxWidth: 500, margin: "0 auto", lineHeight: 1.8 }}>Watch and support your favorite creators live. Pay per view, send gifts, and be part of the moment.</div>
-          </div>
-          {[
-            { emoji: "👁", title: "Browse for free", desc: "Discover all live streams happening right now — no signup needed." },
-            { emoji: "💳", title: "Pay to join", desc: "Unlock any stream instantly with MTN MoMo, Airtel Money, or Visa." },
-            { emoji: "🎬", title: "Watch & Chat", desc: "Enjoy the stream and interact with other viewers in real time." },
-            { emoji: "🎁", title: "Send Gifts", desc: "Show your appreciation by sending gifts to creators during their live stream." },
-            { emoji: "💰", title: "Creators get paid", desc: "Up to 95% of every payment goes directly to the creator — instantly." },
-            { emoji: "📅", title: "Coming Soon", desc: "Creators can schedule upcoming streams so you never miss a show." },
-          ].map((item, i) => (
-            <div key={i} className="stream-row" style={{ background: C.card, borderRadius: 12, padding: "20px 24px", border: `1px solid ${C.border}`, display: "flex", gap: 16, marginBottom: 12, alignItems: "flex-start" }}>
-              <div style={{ fontSize: 36, flexShrink: 0 }}>{item.emoji}</div>
-              <div>
-                <div style={{ fontFamily: FONT.display, fontSize: 18, color: C.white, letterSpacing: 1, marginBottom: 6 }}>{item.title.toUpperCase()}</div>
-                <div style={{ color: C.textMuted, fontSize: 14, lineHeight: 1.7 }}>{item.desc}</div>
+          {/* ── ABOUT TAB ── */}
+          {tab === "about" && (
+            <div style={{ padding: "32px 24px 60px", maxWidth: 760 }}>
+              <div style={{ textAlign: "center", marginBottom: 40 }}>
+                <div style={{ fontFamily: FONT.display, fontSize: 56, color: C.red, letterSpacing: 4, marginBottom: 8 }}>PLAY</div>
+                <div style={{ fontFamily: FONT.display, fontSize: 24, color: C.white, letterSpacing: 2, marginBottom: 12 }}>RWANDA'S PREMIER LIVE STREAMING PLATFORM</div>
+                <div style={{ color: C.textMuted, fontSize: 15, maxWidth: 480, margin: "0 auto", lineHeight: 1.8 }}>Watch and support your favorite creators live. Pay per view, send gifts, and be part of the moment.</div>
               </div>
+              {[
+                { emoji: "👁", title: "Browse for free", desc: "Discover all live streams happening right now — no signup needed." },
+                { emoji: "💳", title: "Pay to join", desc: "Unlock any stream instantly with MTN MoMo, Airtel Money, or Visa." },
+                { emoji: "🎬", title: "Watch & Chat", desc: "Enjoy the stream and interact with other viewers in real time." },
+                { emoji: "🎁", title: "Send Gifts", desc: "Show your appreciation by sending gifts to creators during their live stream." },
+                { emoji: "💰", title: "Creators get paid", desc: "Up to 95% of every payment goes directly to the creator — instantly." },
+                { emoji: "📅", title: "Coming Soon", desc: "Creators can schedule upcoming streams so you never miss a show." },
+              ].map((item, i) => (
+                <div key={i} className="stream-row" style={{ background: C.card, borderRadius: 12, padding: "18px 22px", border: `1px solid ${C.border}`, display: "flex", gap: 16, marginBottom: 10, alignItems: "flex-start" }}>
+                  <div style={{ fontSize: 32, flexShrink: 0 }}>{item.emoji}</div>
+                  <div>
+                    <div style={{ fontFamily: FONT.display, fontSize: 16, color: C.white, letterSpacing: 1, marginBottom: 4 }}>{item.title.toUpperCase()}</div>
+                    <div style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.7 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Footer */}
-      <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "48px 4% 32px" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
-            <div>
-              <div style={{ fontFamily: FONT.display, fontSize: 36, color: C.red, letterSpacing: 3, marginBottom: 12 }}>PLAY</div>
-              <div style={{ color: C.textMuted, fontSize: 13, maxWidth: 240, lineHeight: 1.7 }}>Rwanda's Premier Live Streaming Pay-Per-View Platform. Built for creators.</div>
-            </div>
-            <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }}>
+          {/* Footer */}
+          <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "40px 24px 28px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 24, marginBottom: 32 }}>
               <div>
-                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Platform</div>
-                {["Browse Streams", "Top Creators", "How it Works", "Pricing"].map(item => (
-                  <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10 }}>{item}</div>
-                ))}
+                <div style={{ fontFamily: FONT.display, fontSize: 32, color: C.red, letterSpacing: 3, marginBottom: 10 }}>PLAY</div>
+                <div style={{ color: C.textMuted, fontSize: 13, maxWidth: 220, lineHeight: 1.7 }}>Rwanda's Premier Live Streaming Pay-Per-View Platform.</div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Creators</div>
-                {["Go Live", "Creator Studio", "Payouts", "Guidelines"].map(item => (
-                  <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10 }}>{item}</div>
-                ))}
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Contact</div>
-                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>hello@play.rw</div>
-                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>Kigali, Rwanda</div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {["Twitter", "Instagram", "TikTok"].map(s => (
-                    <div className="social-badge" key={s} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, color: C.textMuted }}>{s}</div>
+              <div style={{ display: "flex", gap: 40, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, fontWeight: 700 }}>Platform</div>
+                  {["Browse Streams", "Top Creators", "How it Works", "Pricing"].map(item => (
+                    <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>{item}</div>
                   ))}
                 </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, fontWeight: 700 }}>Creators</div>
+                  {["Go Live", "Creator Studio", "Payouts", "Guidelines"].map(item => (
+                    <div className="footer-link" key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>{item}</div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, fontWeight: 700 }}>Contact</div>
+                  <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 6 }}>hello@play.rw</div>
+                  <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 14 }}>Kigali, Rwanda</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["Twitter", "Instagram", "TikTok"].map(s => (
+                      <div className="social-badge" key={s} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: C.textMuted }}>{s}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 12, color: C.textDim }}>© 2026 Play Rwanda. All rights reserved.</div>
+              <div style={{ fontSize: 12, color: C.textDim }}>Made with ❤️ in Kigali</div>
+            </div>
+          </footer>
+        </div>
+
+        {/* ── RIGHT SIDEBAR ── */}
+        <div style={{ width: 280, flexShrink: 0, position: "fixed", top: 60, right: 0, bottom: 0, overflowY: "auto", background: C.black, borderLeft: `1px solid ${C.border}`, padding: "16px 14px", zIndex: 100 }}>
+
+          {/* Top Creators This Week */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <span style={{ fontSize: 16 }}>👑</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: C.white }}>Top Creators This Week</span>
+            </div>
+            {topCreators.length === 0
+              ? <div style={{ color: C.textMuted, fontSize: 12, textAlign: "center", padding: "20px 0" }}>No data yet</div>
+              : topCreators.map((s, i) => (
+                <div key={s.id} className="stream-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", borderRadius: 8, marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, width: 20, textAlign: "center", color: i < 3 ? ["#FFD700","#C0C0C0","#CD7F32"][i] : C.textMuted, fontWeight: 800 }}>{i+1}</div>
+                  <Avatar name={s.creator} size={32} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: C.white, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{s.creator}</div>
+                    <div style={{ fontSize: 10, color: C.textMuted }}>{s.handle}</div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80", flexShrink: 0 }}>{fmt(s.totalEarned || s.total_earned || 0, "RWF")}</div>
+                </div>
+              ))
+            }
+            <button className="btn-surface" onClick={() => setTab("leaderboard")} style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px", color: C.textMuted, fontSize: 12, cursor: "pointer", fontFamily: FONT.body, marginTop: 6 }}>View Full Leaderboard</button>
+          </div>
+
+          <div style={{ height: 1, background: C.border, marginBottom: 16 }} />
+
+          {/* Creator Earnings */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 16 }}>💰</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: C.white }}>Creator Earnings</span>
+            </div>
+            <div style={{ background: C.card, borderRadius: 10, padding: "14px", border: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Total Paid to Creators</div>
+              <div style={{ fontFamily: FONT.display, fontSize: 22, color: C.white, letterSpacing: 1, marginBottom: 4 }}>{Math.round(totalEarned).toLocaleString()} RWF</div>
+              <div style={{ fontSize: 11, color: "#4ade80" }}>+Growing every day 📈</div>
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: C.border, marginBottom: 16 }} />
+
+          {/* Fast Payouts */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: C.white, marginBottom: 4 }}>Fast & Secure Payouts</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>Get paid instantly via Mobile Money</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1, background: "#FFCB0018", border: "1px solid #FFCB0033", borderRadius: 8, padding: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#FFCB00" }}>MTN</div>
+                <div style={{ fontSize: 9, color: C.textMuted }}>MoMo</div>
+              </div>
+              <div style={{ flex: 1, background: "rgba(229,9,20,0.1)", border: "1px solid rgba(229,9,20,0.3)", borderRadius: 8, padding: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.red }}>AIRTEL</div>
+                <div style={{ fontSize: 9, color: C.textMuted }}>Money</div>
               </div>
             </div>
           </div>
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontSize: 12, color: C.textDim }}>© 2026 Play Rwanda. All rights reserved.</div>
-            <div style={{ fontSize: 12, color: C.textDim }}>Made with ❤️ in Kigali</div>
+
+          <div style={{ height: 1, background: C.border, marginBottom: 16 }} />
+
+          {/* Go Live CTA */}
+          <div style={{ background: "linear-gradient(135deg, #1a0505, #2d0505)", borderRadius: 10, padding: "16px", border: `1px solid rgba(229,9,20,0.2)` }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: C.white, marginBottom: 4 }}>Ready to go live?</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Start your live stream and grow your audience today.</div>
+            <button className="btn-red" onClick={onGoLive} style={{ width: "100%", background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "10px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              🔴 Go Live Now
+            </button>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
+
 
 
 // ── HOST BROADCAST ─────────────────────────────────────────────────────────────
