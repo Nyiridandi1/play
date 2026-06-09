@@ -134,12 +134,12 @@ function SplashScreen({ onDone }) {
 function StreamCard({ stream: s, onClick }) {
   const [hovered, setHovered] = useState(false);
   const gradients = [
-    "linear-gradient(135deg, #1a0a0a, #2d0a0a)",
-    "linear-gradient(135deg, #0a0a1a, #0a1a2d)",
-    "linear-gradient(135deg, #0a1a0a, #1a2d0a)",
-    "linear-gradient(135deg, #1a1a0a, #2d2a0a)",
-    "linear-gradient(135deg, #1a0a1a, #2a0a2d)",
-    "linear-gradient(135deg, #0a1a1a, #0a2d2a)",
+    "linear-gradient(135deg, #2d0a0a, #1a0505)",
+    "linear-gradient(135deg, #0a0a2d, #05051a)",
+    "linear-gradient(135deg, #0a2d0a, #05180a)",
+    "linear-gradient(135deg, #2d2a0a, #1a1705)",
+    "linear-gradient(135deg, #2a0a2d, #18051a)",
+    "linear-gradient(135deg, #0a2d2a, #051a18)",
   ];
   const grad = gradients[parseInt(s.id?.slice(-1) || 0) % gradients.length];
 
@@ -148,31 +148,59 @@ function StreamCard({ stream: s, onClick }) {
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", transform: hovered ? "scale(1.03)" : "scale(1)", transition: "transform 0.2s ease", background: C.card }}
+      style={{
+        borderRadius: 6,
+        overflow: "visible",
+        cursor: "pointer",
+        position: "relative",
+        zIndex: hovered ? 10 : 1,
+        transform: hovered ? "scale(1.08) translateY(-4px)" : "scale(1)",
+        transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+        boxShadow: hovered ? "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)" : "none",
+      }}
     >
-      {/* Thumbnail */}
-      <div style={{ position: "relative", height: 160, background: grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontSize: 52, filter: hovered ? "brightness(1.2)" : "brightness(0.9)", transition: "filter 0.2s" }}>{s.emoji || "🎬"}</div>
-        <div style={{ position: "absolute", inset: 0, background: hovered ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.4)", transition: "background 0.2s" }} />
-        <div style={{ position: "absolute", top: 10, left: 10 }}><LiveBadge /></div>
-        <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.75)", borderRadius: 4, padding: "3px 8px", fontSize: 12, fontWeight: 700, color: C.white, fontFamily: FONT.body }}>{fmt(s.price, s.currency)}</div>
-        <div style={{ position: "absolute", bottom: 10, left: 10, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.75)", borderRadius: 4, padding: "3px 8px" }}>
-          <span style={{ fontSize: 10, color: C.textMuted }}>👁</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: C.white, fontFamily: FONT.body }}>{s.viewers?.toLocaleString()}</span>
+      <div style={{ borderRadius: 6, overflow: "hidden", background: C.card }}>
+        {/* Thumbnail */}
+        <div style={{ position: "relative", height: 152, background: grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontSize: 52, transition: "transform 0.3s ease", transform: hovered ? "scale(1.1)" : "scale(1)" }}>{s.emoji || "🎬"}</div>
+          <div style={{ position: "absolute", inset: 0, background: hovered ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.35)", transition: "background 0.25s" }} />
+          <div style={{ position: "absolute", top: 8, left: 8 }}><LiveBadge /></div>
+          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.8)", borderRadius: 4, padding: "3px 8px", fontSize: 12, fontWeight: 700, color: C.white }}>{fmt(s.price, s.currency)}</div>
+          <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.75)", borderRadius: 4, padding: "3px 8px" }}>
+            <span style={{ fontSize: 10, color: C.textMuted }}>👁</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.white }}>{s.viewers?.toLocaleString()}</span>
+          </div>
+          <div style={{ position: "absolute", bottom: 8, right: 8, background: C.surface, borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: C.textMuted }}>{s.category}</div>
         </div>
-        {/* Category tag */}
-        <div style={{ position: "absolute", bottom: 10, right: 10, background: C.surface, borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: FONT.body }}>{s.category}</div>
-      </div>
-      {/* Info */}
-      <div style={{ padding: "12px 14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <Avatar name={s.creator} size={28} />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13, color: C.white, fontFamily: FONT.body }}>{s.creator}</div>
-            <div style={{ fontSize: 11, color: C.textMuted, fontFamily: FONT.body }}>{s.handle}</div>
+
+        {/* Info — always visible */}
+        <div style={{ padding: "12px 14px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <Avatar name={s.creator} size={26} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.white }}>{s.creator}</div>
+              <div style={{ fontSize: 11, color: C.textMuted }}>{s.handle}</div>
+            </div>
+          </div>
+          <div style={{ fontWeight: 600, fontSize: 14, color: C.white, lineHeight: 1.3, marginBottom: hovered ? 10 : 0, transition: "margin 0.2s" }}>{s.title}</div>
+
+          {/* Netflix-style expanded info on hover */}
+          <div style={{ overflow: "hidden", maxHeight: hovered ? 80 : 0, transition: "max-height 0.3s ease", opacity: hovered ? 1 : 0 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <button onClick={e => { e.stopPropagation(); onClick(); }} style={{ flex: 1, background: C.white, border: "none", borderRadius: 4, padding: "7px 12px", color: C.black, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT.body }}>
+                ▶ Watch
+              </button>
+              <button onClick={e => { e.stopPropagation(); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 4, padding: "7px 12px", color: C.white, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: FONT.body }}>
+                + Info
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: C.textMuted, display: "flex", gap: 12 }}>
+              <span style={{ color: "#4ade80", fontWeight: 700 }}>LIVE</span>
+              <span>{s.category}</span>
+              <span>{fmt(s.price, s.currency)}</span>
+            </div>
           </div>
         </div>
-        <div style={{ fontWeight: 600, fontSize: 14, color: C.white, marginBottom: 4, fontFamily: FONT.body, lineHeight: 1.3 }}>{s.title}</div>
       </div>
     </div>
   );
@@ -278,11 +306,51 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
           ? <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "60px 0" }}>
               {[0,1,2].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: `bounce 0.7s ${i*0.15}s ease-in-out infinite alternate` }} />)}
             </div>
-          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, padding: "8px 4px 20px" }}>
               {filtered.map(s => <StreamCard key={s.id} stream={s} onClick={() => onWatch(s)} />)}
             </div>
         }
       </div>
+
+      {/* Footer */}
+      <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "48px 5% 32px" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
+            <div>
+              <div style={{ fontFamily: FONT.display, fontSize: 36, color: C.red, letterSpacing: 3, marginBottom: 12 }}>PLAY</div>
+              <div style={{ color: C.textMuted, fontSize: 13, maxWidth: 240, lineHeight: 1.7 }}>Rwanda's Premier Live Streaming Pay-Per-View Platform. Built for creators.</div>
+            </div>
+            <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Platform</div>
+                {["Browse Streams", "Top Creators", "How it Works", "Pricing"].map(item => (
+                  <div key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10, cursor: "pointer", transition: "color 0.2s" }}>{item}</div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Creators</div>
+                {["Go Live", "Creator Studio", "Payouts", "Guidelines"].map(item => (
+                  <div key={item} style={{ color: C.textMuted, fontSize: 13, marginBottom: 10, cursor: "pointer" }}>{item}</div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 16, fontWeight: 700 }}>Contact</div>
+                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>hello@play.rw</div>
+                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>Kigali, Rwanda</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {["Twitter", "Instagram", "TikTok"].map(s => (
+                    <div key={s} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 11, color: C.textMuted, cursor: "pointer" }}>{s}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 12, color: C.textDim }}>© 2026 Play Rwanda. All rights reserved.</div>
+            <div style={{ fontSize: 12, color: C.textDim }}>Made with ❤️ in Kigali</div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
