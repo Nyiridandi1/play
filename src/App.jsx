@@ -33,8 +33,10 @@ const FONT = {
 // ── GLOBAL STYLES ─────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: ${C.black}; color: ${C.white}; font-family: ${FONT.body}; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { width: 100%; min-height: 100vh; background: ${C.black}; color: ${C.white}; font-family: ${FONT.body}; overflow-x: hidden; }
+  body { margin: 0 !important; padding: 0 !important; }
+  #root { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
@@ -44,6 +46,10 @@ const GLOBAL_CSS = `
   @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
   @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
   @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+  .nav-btn { transition: all 0.2s ease !important; }
+  .nav-btn:hover { opacity: 0.8 !important; transform: scale(1.03) !important; }
+  .go-live-btn:hover { background: #ff0a16 !important; box-shadow: 0 0 20px rgba(229,9,20,0.5) !important; }
+  .sign-in-btn:hover { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.5) !important; }
 `;
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -220,37 +226,31 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
   const featured = filtered[0];
 
   return (
-    <div style={{ minHeight: "100vh", background: C.black, fontFamily: FONT.body }}>
+    <div style={{ width: "100vw", minHeight: "100vh", background: C.black, fontFamily: FONT.body, overflowX: "hidden", position: "relative" }}>
       <style>{GLOBAL_CSS}</style>
 
       {/* Navbar */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(0,0,0,0))", padding: "0 5%" }}>
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%)", padding: "0 4%" }}>
         <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <Logo />
-            <div style={{ display: "flex", gap: 20, display: "none" }}>
-              {["Home", "Browse", "Top Creators"].map(item => (
-                <span key={item} style={{ fontSize: 14, fontWeight: 500, color: C.textMuted, cursor: "pointer", transition: "color 0.2s" }}>{item}</span>
-              ))}
-            </div>
-          </div>
+            <Logo /></div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {user
               ? <>
                 <Avatar name={user.name} size={32} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{user.name}</span>
-                <button onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body }}>Sign Out</button>
+                <button className="nav-btn sign-in-btn" onClick={onLogout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, transition: "all 0.2s" }}>Sign Out</button>
               </>
-              : <button onClick={onLogin} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500 }}>Sign In</button>
+              : <button className="nav-btn sign-in-btn" onClick={onLogin} style={{ background: "transparent", border: `1px solid rgba(255,255,255,0.3)`, color: C.white, borderRadius: 6, padding: "6px 16px", fontSize: 13, cursor: "pointer", fontFamily: FONT.body, fontWeight: 500, transition: "all 0.2s" }}>Sign In</button>
             }
-            <button onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, letterSpacing: 0.5 }}>Go Live</button>
+            <button className="nav-btn go-live-btn" onClick={onGoLive} style={{ background: C.red, border: "none", borderRadius: 6, color: C.white, fontWeight: 700, padding: "8px 20px", cursor: "pointer", fontSize: 13, fontFamily: FONT.body, letterSpacing: 0.5, transition: "all 0.2s" }}>Go Live</button>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
       {featured && (
-        <div style={{ position: "relative", height: "60vh", minHeight: 400, background: "linear-gradient(135deg, #1a0505, #0a0a0a)", display: "flex", alignItems: "flex-end", paddingBottom: 60, paddingLeft: "5%" }}>
+        <div style={{ position: "relative", width: "100%", height: "65vh", minHeight: 420, background: "linear-gradient(135deg, #1a0505, #0a0a0a)", display: "flex", alignItems: "flex-end", paddingBottom: 64, paddingLeft: "4%", paddingRight: "4%" }}>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 120, opacity: 0.15 }}>{featured.emoji}</div>
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.9) 40%, transparent), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }} />
           <div style={{ position: "relative", zIndex: 2, maxWidth: 520, animation: "fadeIn 0.6s ease" }}>
@@ -271,7 +271,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
       )}
 
       {/* Content */}
-      <div style={{ padding: "32px 5% 60px", marginTop: featured ? 0 : 80 }}>
+      <div style={{ padding: "32px 4% 60px", marginTop: featured ? 0 : 80 }}>
 
         {/* Search + Filter */}
         <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap", alignItems: "center" }}>
@@ -313,7 +313,7 @@ function HomePage({ streams, onWatch, onGoLive, user, onLogin, onLogout, loading
       </div>
 
       {/* Footer */}
-      <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "48px 5% 32px" }}>
+      <footer style={{ background: C.black, borderTop: `1px solid ${C.border}`, padding: "48px 4% 32px" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
             <div>
