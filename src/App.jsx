@@ -319,21 +319,27 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         const room = new Room();
         roomRef.current = room;
 
-        // When host publishes video track, attach it
+        // When host publishes tracks, attach them
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (!mounted) return;
+          const element = track.attach();
           if (track.kind === Track.Kind.Video) {
-            const element = track.attach();
             element.style.position = "absolute";
             element.style.inset = "0";
             element.style.width = "100%";
             element.style.height = "100%";
             element.style.objectFit = "cover";
+            element.autoplay = true;
+            element.playsInline = true;
             if (videoRef.current) {
               videoRef.current.innerHTML = "";
               videoRef.current.appendChild(element);
             }
             setStatus("live");
+          } else if (track.kind === Track.Kind.Audio) {
+            // Attach audio element to body so it plays
+            element.autoplay = true;
+            document.body.appendChild(element);
           }
         });
 
@@ -357,18 +363,25 @@ function LiveRoom({ stream: s, user, go, toast, lang }) {
         // Check if host already publishing
         room.remoteParticipants.forEach(participant => {
           participant.trackPublications.forEach(pub => {
-            if (pub.track && pub.track.kind === Track.Kind.Video) {
+            if (pub.track) {
               const element = pub.track.attach();
-              element.style.position = "absolute";
-              element.style.inset = "0";
-              element.style.width = "100%";
-              element.style.height = "100%";
-              element.style.objectFit = "cover";
-              if (videoRef.current) {
-                videoRef.current.innerHTML = "";
-                videoRef.current.appendChild(element);
+              if (pub.track.kind === Track.Kind.Video) {
+                element.style.position = "absolute";
+                element.style.inset = "0";
+                element.style.width = "100%";
+                element.style.height = "100%";
+                element.style.objectFit = "cover";
+                element.autoplay = true;
+                element.playsInline = true;
+                if (videoRef.current) {
+                  videoRef.current.innerHTML = "";
+                  videoRef.current.appendChild(element);
+                }
+                if (mounted) setStatus("live");
+              } else if (pub.track.kind === Track.Kind.Audio) {
+                element.autoplay = true;
+                document.body.appendChild(element);
               }
-              if (mounted) setStatus("live");
             }
           });
         });
