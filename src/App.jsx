@@ -1579,7 +1579,7 @@ function CreatorStudio({ creator, go, toast }) {
       {/* Go Live Modal */}
       {showCreate && (
         <div style={{ position: "fixed", inset: 0, background: C.overlay, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={() => setShowCreate(false)}>
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "32px 28px", width: "100%", maxWidth: 440, animation: "fadeIn 0.3s ease" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 480, animation: "fadeIn 0.3s ease", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontFamily: FONT.display, fontSize: 24, color: C.white, letterSpacing: 2, marginBottom: 24 }}>START A LIVE STREAM</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
